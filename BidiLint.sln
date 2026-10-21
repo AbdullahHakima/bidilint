@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{C82E641D-F504-4B45-BE3C-1CA19A5CDCA4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BidiLint", "src\BidiLint\BidiLint.csproj", "{F71835EC-ABDD-49B2-9CEC-FC0F20325DAB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{21B9284F-89CC-43F4-A982-FFC51154A7DD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BidiLint.Tests", "tests\BidiLint.Tests\BidiLint.Tests.csproj", "{5BF4CF7C-2F83-4079-9D16-788CF0932EB5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F71835EC-ABDD-49B2-9CEC-FC0F20325DAB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F71835EC-ABDD-49B2-9CEC-FC0F20325DAB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F71835EC-ABDD-49B2-9CEC-FC0F20325DAB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F71835EC-ABDD-49B2-9CEC-FC0F20325DAB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5BF4CF7C-2F83-4079-9D16-788CF0932EB5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5BF4CF7C-2F83-4079-9D16-788CF0932EB5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5BF4CF7C-2F83-4079-9D16-788CF0932EB5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5BF4CF7C-2F83-4079-9D16-788CF0932EB5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F71835EC-ABDD-49B2-9CEC-FC0F20325DAB} = {C82E641D-F504-4B45-BE3C-1CA19A5CDCA4}
+		{5BF4CF7C-2F83-4079-9D16-788CF0932EB5} = {21B9284F-89CC-43F4-A982-FFC51154A7DD}
+	EndGlobalSection
+EndGlobal
