@@ -9,7 +9,7 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>bidilint</ToolCommandName>
     <PackageId>BidiLint</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Authors>Abdullah Hakim</Authors>
     <Description>Lint Arabic/English localization files for bidi pitfalls: missing keys, unisolated Latin runs, mixed numeral systems, unbalanced isolates.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
