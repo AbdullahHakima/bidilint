@@ -8,14 +8,19 @@
   unbalanced isolates
 - `--strict` CI exit code, bundled sample with real-world mistakes
 
+## 0.2.0
+
+- `.resx` support: satellite files by name (`Strings.ar.resx`), a neutral
+  `Strings.resx` counts as the base culture, non-string resources skipped
+- JSON and .resx merge per culture (JSON wins on duplicate keys)
+- `--format json` for editors and CI tooling
+
 ## Next
 
-- `.resx` support
-- JSON output (`--format json`) for editors and dashboards
 - Auto-fix for unisolated Latin runs (wrap in FSI..PDI)
+- Number-adjacency rules (numbers glued to Arabic words)
 
 ## Later
 
-- Number-adjacency rules (numbers glued to Arabic words)
 - Config file: per-project base culture, ignored keys, allowed Latin terms
   (product names a team decides to leave unisolated)
