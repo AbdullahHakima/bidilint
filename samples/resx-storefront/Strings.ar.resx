@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <data name="app.title" xml:space="preserve"><value>متجر ماكينات الخياطة</value></data>
+  <data name="products.count" xml:space="preserve"><value>{0} منتج</value></data>
+  <data name="skills.stack" xml:space="preserve"><value>مبني بـ ASP.NET Core</value></data>
+</root>
