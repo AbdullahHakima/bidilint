@@ -9,7 +9,7 @@ Arabic-Indic and Western digits, a `{1}` placeholder the translator dropped.
 Nothing failed to compile. Everything looked fine in the JSON file. It broke
 in the browser, in RTL, in front of users.
 
-BidiLint is a small `dotnet tool` that scans JSON locale files and reports
+BidiLint is a small `dotnet tool` that scans localization files and reports
 those problems before they ship.
 
 ## Install
@@ -21,12 +21,21 @@ dotnet tool install -g BidiLint
 ## Usage
 
 ```bash
-bidilint <folder> [--base en] [--strict]
+bidilint <folder> [--base en] [--format text|json] [--strict]
 ```
 
-The folder holds one JSON file per culture, named by culture: `en.json`,
-`ar.json`, `ar-EG.json`, and so on. Nested objects flatten to dotted keys
-(`checkout.payNow`). Files that are not named like a culture are ignored.
+Two file shapes, mixed freely in one folder tree:
+
+- **JSON** — one file per culture, named by culture: `en.json`, `ar.json`,
+  `ar-EG.json`, and so on. Nested objects flatten to dotted keys
+  (`checkout.payNow`). Files that are not named like a culture are ignored.
+- **.resx** — `Strings.ar.resx` is Arabic; a neutral `Strings.resx` counts
+  as the base culture. Non-string resources (images, file references) are
+  skipped.
+
+If a culture exists in both shapes, the entries merge and JSON wins on a
+duplicate key. `--format json` prints a machine-readable report (files,
+counts, findings) for editors and CI annotations.
 
 - Exit codes: `0` ok · `1` usage error · `2` path not found · `3` no locale
   files or base file missing · `4` errors found under `--strict` (for CI).
@@ -74,12 +83,13 @@ ar:
   warning UnisolatedLatin · skills.stack
          Latin run "C#" is not wrapped in bidi isolates; it can render in the wrong order inside Arabic text. Wrap it (FSI..PDI) or confirm the UI isolates it.
 
-BidiLint 0.1.0: 2 file(s), base en, 18 keys — 4 error(s), 5 warning(s) in 96 ms.
+BidiLint 0.2.0: 2 file(s), base en, 18 keys — 4 error(s), 5 warning(s) in 68 ms.
 ```
 
 ## How it works / limitations
 
-- JSON only for now, one file per culture. `.resx` support is on the roadmap.
+- JSON and .resx files. One neutral .resx counts as the base culture; the
+  base of a JSON-only project is the file named after `--base`.
 - The bidi checks are lint rules, not a full Unicode bidi algorithm (UAX #9)
   implementation. They catch the recurring mistakes; they do not prove a
   string renders correctly in every context.
@@ -92,10 +102,9 @@ BidiLint 0.1.0: 2 file(s), base en, 18 keys — 4 error(s), 5 warning(s) in 96 m
 
 ## Roadmap
 
-- `.resx` files and per-project base cultures
-- A JSON report format for tooling
 - Auto-fix for the mechanical cases (wrapping a run in FSI..PDI)
 - Number-adjacency rules (a number glued to Arabic words without isolation)
+- Config file: per-project base culture, ignored keys, allowed Latin terms
 
 ## Development
 
