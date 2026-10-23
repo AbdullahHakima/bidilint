@@ -18,6 +18,24 @@ public class BidiScannerTests
     {
         var scan = BidiScanner.Scan("Built with ASP.NET Core");
         Assert.False(scan.HasArabic);
+        Assert.False(scan.HasRtlScript);
+    }
+
+    [Fact]
+    public void ArabicText_HasRtlScript()
+    {
+        var scan = BidiScanner.Scan("ماكينات خياطة");
+        Assert.True(scan.HasArabic);
+        Assert.True(scan.HasRtlScript);
+    }
+
+    [Fact]
+    public void HebrewText_HasRtlScript()
+    {
+        var scan = BidiScanner.Scan("נבנה עם ASP.NET Core");
+        Assert.True(scan.HasHebrew);
+        Assert.True(scan.HasRtlScript);
+        Assert.Contains("ASP.NET Core", scan.UnisolatedLatinRuns);
     }
 
     [Fact]

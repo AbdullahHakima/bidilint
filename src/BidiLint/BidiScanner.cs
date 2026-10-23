@@ -2,12 +2,14 @@ using System.Text.RegularExpressions;
 
 namespace BidiLint;
 
-// Character-level facts about one string, computed once and shared by the checks.
-// The ranges follow the Unicode blocks Arabic text actually uses; the goal is
-// linting, not a full UAX #9 implementation.
+// Character-level facts about one string, computed once and shared by the
+// checks. This is not a UAX #9 implementation yet; it identifies the scripts
+// and control characters that the lint rules need.
 public sealed record StringScan
 {
     public bool HasArabic { get; init; }
+    public bool HasHebrew { get; init; }
+    public bool HasRtlScript { get; init; }
     public bool HasWesternDigits { get; init; }
     public bool HasArabicIndicDigits { get; init; }
 
@@ -31,7 +33,11 @@ public static class BidiScanner
     // multi-word product name reads as one run.
     private static readonly Regex LatinRun = new(
         @"\.?[A-Za-z][A-Za-z0-9+#]*(?:[ .][A-Za-z][A-Za-z0-9+#]*)*",
-        RegexOptions.Compiled);
+        RegexOptions.Compiled | RegexOptions.NonBacktracking);
+
+    private static readonly Regex Placeholder = new(
+        @"\{[^}]+\}",
+        RegexOptions.Compiled | RegexOptions.NonBacktracking);
 
     public static bool IsArabicChar(char c) =>
         (c >= '\u0620' && c <= '\u064A') ||   // Arabic
@@ -42,11 +48,29 @@ public static class BidiScanner
         (c >= '\uFB50' && c <= '\uFDFF') ||   // Presentation Forms-A
         (c >= '\uFE70' && c <= '\uFEFF');     // Presentation Forms-B
 
+    public static bool IsHebrewChar(char c) =>
+        (c >= '\u0590' && c <= '\u05FF') ||   // Hebrew
+        (c >= '\uFB1D' && c <= '\uFB4F');     // Hebrew presentation forms
+
+    public static bool IsRtlChar(char c) =>
+        IsArabicChar(c) ||
+        IsHebrewChar(c) ||
+        (c >= '\u0700' && c <= '\u074F') ||   // Syriac
+        (c >= '\u0780' && c <= '\u07BF') ||   // Thaana
+        (c >= '\u07C0' && c <= '\u07FF') ||   // NKo
+        (c >= '\u0800' && c <= '\u085F') ||   // Samaritan, Mandaic
+        (c >= '\u0860' && c <= '\u086F') ||   // Syriac Supplement
+        (c >= '\u0870' && c <= '\u089F');     // Arabic Extended-B
+
     public static StringScan Scan(string value)
     {
+        var hasArabic = value.Any(IsArabicChar);
+        var hasHebrew = value.Any(IsHebrewChar);
         var scan = new StringScan
         {
-            HasArabic = value.Any(IsArabicChar),
+            HasArabic = hasArabic,
+            HasHebrew = hasHebrew,
+            HasRtlScript = hasArabic || hasHebrew || value.Any(IsRtlChar),
             HasWesternDigits = value.Any(c => c is >= '0' and <= '9'),
             HasArabicIndicDigits = value.Any(c =>
                 (c >= '\u0660' && c <= '\u0669') || (c >= '\u06F0' && c <= '\u06F9')),
@@ -83,14 +107,11 @@ public static class BidiScanner
 
     // Single plain letters ("a", "x") are usually harmless; runs that look like
     // names, code or versions are the ones that flip order in an RTL line.
-    private static bool IsSignificantRun(string run)
-    {
-        if (run.Length >= 2) return true;
-        return run.Length == 1 && false; // reserved for future single-letter rules
-    }
-
-    private static readonly Regex Placeholder = new(@"\{[^}]+\}", RegexOptions.Compiled);
+    private static bool IsSignificantRun(string run) => run.Length >= 2;
 
     public static List<string> Placeholders(string value) =>
-        Placeholder.Matches(value).Select(m => m.Value).OrderBy(p => p, StringComparer.Ordinal).ToList();
+        Placeholder.Matches(value)
+            .Select(m => m.Value)
+            .OrderBy(p => p, StringComparer.Ordinal)
+            .ToList();
 }

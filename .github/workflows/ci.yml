@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore BidiLint.sln
+
+      - name: Build
+        run: dotnet build BidiLint.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test BidiLint.sln -c Release --no-build
+
+      - name: Verify formatting
+        run: dotnet format BidiLint.sln --verify-no-changes --no-restore
+
+      - name: Pack
+        run: dotnet pack src/BidiLint/BidiLint.csproj -c Release --no-build -o artifacts
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: BidiLint-${{ matrix.os }}
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+          if-no-files-found: error
+
+  package-smoke:
+    name: Package and install smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Pack
+        run: dotnet pack src/BidiLint/BidiLint.csproj -c Release -o artifacts
+
+      - name: Install the packed tool
+        run: dotnet tool install --global BidiLint --add-source "$GITHUB_WORKSPACE/artifacts" --version 0.4.0
+
+      - name: Run the installed tool on the sample
+        shell: bash
+        run: |
+          set +e
+          "$HOME/.dotnet/tools/bidilint" samples/storefront --format json > report.json
+          code=$?
+          set -e
+          echo "bidilint exit code: $code"
+          test "$code" -eq 4
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("report.json").read_text(encoding="utf-8"))
+          assert report["tool"] == "BidiLint", report
+          assert report["errors"] == 4, report
+          assert report["warnings"] == 5, report
+          assert report["findings"], report
+          assert all("file" in finding for finding in report["findings"]), report
+          print(f"report version={report['version']} errors={report['errors']} warnings={report['warnings']}")
+          PY
+
+      - name: Run the installed tool on the resx sample
+        shell: bash
+        run: |
+          set +e
+          "$HOME/.dotnet/tools/bidilint" samples/resx-storefront --format json > resx-report.json
+          code=$?
+          set -e
+          echo "bidilint exit code: $code"
+          test "$code" -eq 4
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("resx-report.json").read_text(encoding="utf-8"))
+          assert report["tool"] == "BidiLint", report
+          assert report["errors"] == 1, report
+          assert report["warnings"] == 1, report
+          print(f"resx report version={report['version']} errors={report['errors']} warnings={report['warnings']}")
+          PY

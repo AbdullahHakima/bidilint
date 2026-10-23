@@ -1,0 +1,9 @@
+<resources>
+  <string name="app_name">متجر خياطة</string>
+  <string name="cart.items">{0} عنصر</string>
+  <string name="brand">مبني على ASP.NET Core</string>
+  <plurals name="messages">
+    <item quantity="one">{0} رسالة</item>
+    <item quantity="other">{0} رسائل</item>
+  </plurals>
+</resources>

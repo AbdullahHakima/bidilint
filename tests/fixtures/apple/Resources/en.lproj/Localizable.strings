@@ -1,0 +1,5 @@
+/* English base */
+"app.name" = "Sewing Store";
+"cart.items" = "{0} items";
+"brand" = "ASP.NET Core";
+"quote" = "He said \"hello\"";

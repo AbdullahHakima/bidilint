@@ -1,0 +1,9 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "app.name"
+msgstr "متجر خياطة"
+
+msgid "cart.items"
+msgstr "عنصر {0}"

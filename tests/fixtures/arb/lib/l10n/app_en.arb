@@ -1,0 +1,12 @@
+{
+  "@@locale": "en",
+  "appName": "Sewing Store",
+  "brand": "ASP.NET Core",
+  "itemCount": "{count, plural, one {{count} item} other {{count} items}}",
+  "@itemCount": {
+    "description": "Number of items",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
+}

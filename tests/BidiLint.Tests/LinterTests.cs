@@ -1,102 +1,186 @@
-using BidiLint;
 using Xunit;
 
 namespace BidiLint.Tests;
 
-public class LinterTests : IDisposable
+public class LinterTests
 {
-    private readonly string _root;
-
-    public LinterTests()
-    {
-        _root = Path.Combine(Path.GetTempPath(), "bidilint-tests-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_root);
-    }
-
-    public void Dispose() => Directory.Delete(_root, recursive: true);
-
-    private LintResult LintPair(string enJson, string arJson)
-    {
-        File.WriteAllText(Path.Combine(_root, "en.json"), enJson);
-        File.WriteAllText(Path.Combine(_root, "ar.json"), arJson);
-        var files = LocaleLoader.LoadFolder(_root);
-        var baseFile = files.Single(f => f.Culture == "en");
-        return Linter.Lint(files, baseFile);
-    }
-
     [Fact]
     public void NestedKeys_FlattenToDottedPaths()
     {
-        File.WriteAllText(Path.Combine(_root, "en.json"), """{ "checkout": { "payNow": "Pay now" } }""");
-        var files = LocaleLoader.LoadFolder(_root);
-        Assert.True(files.Single().Entries.ContainsKey("checkout.payNow"));
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "checkout": { "payNow": "Pay now" } }""");
+
+        var load = workspace.Load();
+
+        Assert.True(load.Documents.Single().Entries.ContainsKey("checkout.payNow"));
     }
 
     [Fact]
     public void NonCultureJson_IsIgnored()
     {
-        File.WriteAllText(Path.Combine(_root, "package.json"), """{ "name": "x" }""");
-        File.WriteAllText(Path.Combine(_root, "en.json"), """{ "a": "A" }""");
-        var files = LocaleLoader.LoadFolder(_root);
-        Assert.Single(files);
+        using var workspace = new TestWorkspace();
+        workspace.Write("package.json", """{ "name": "x" }""");
+        workspace.Write("app.json", """{ "name": "x" }""");
+        workspace.Write("en.json", """{ "a": "A" }""");
+
+        var load = workspace.Load();
+
+        Assert.Single(load.Documents);
+        Assert.Equal("en", load.Documents[0].Culture);
     }
 
     [Fact]
-    public void MissingKey_IsAnError()
+    public void MalformedJson_IsReported()
     {
-        var result = LintPair("""{ "a": "A", "b": "B" }""", """{ "a": "أ" }""");
-        var f = Assert.Single(result.Findings, x => x.Code == "MissingKey");
-        Assert.Equal(FindingSeverity.Error, f.Severity);
-        Assert.Equal("b", f.Key);
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "a": "A" }""");
+        workspace.Write("ar.json", """{ "a": "أ" """);
+
+        var load = workspace.Load();
+
+        var diagnostic = Assert.Single(load.Diagnostics, d => d.Code == DiagnosticCodes.MalformedFile);
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("ar", diagnostic.Culture);
+        Assert.NotNull(diagnostic.Span);
+    }
+
+    [Fact]
+    public void DuplicateJsonKey_IsReported()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "a": "A", "a": "B" }""");
+
+        var load = workspace.Load();
+
+        var diagnostic = Assert.Single(load.Diagnostics, d => d.Code == DiagnosticCodes.DuplicateKey);
+        Assert.Equal("a", diagnostic.Key);
+        Assert.Equal("A", load.Documents.Single().Entries["a"].Value);
+    }
+
+    [Fact]
+    public void FlatteningCollision_IsReported()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "a.b": "literal", "a": { "b": "nested" } }""");
+
+        var load = workspace.Load();
+
+        var diagnostic = Assert.Single(load.Diagnostics, d => d.Code == DiagnosticCodes.KeyCollision);
+        Assert.Equal("a.b", diagnostic.Key);
+        Assert.Equal("literal", load.Documents.Single().Entries["a.b"].Value);
+    }
+
+    [Fact]
+    public void MissingKey_IsAnErrorAndLinksToBase()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "a": "A", "b": "B" }""");
+        workspace.Write("ar.json", """{ "a": "أ" }""");
+
+        var result = workspace.Lint();
+        var diagnostic = Assert.Single(result.Diagnostics, d => d.Code == DiagnosticCodes.MissingKey);
+
+        Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal("b", diagnostic.Key);
+        Assert.NotNull(diagnostic.Related);
+        Assert.Contains("en.json", diagnostic.Related![0].FilePath, StringComparison.Ordinal);
     }
 
     [Fact]
     public void ExtraKey_IsAWarning()
     {
-        var result = LintPair("""{ "a": "A" }""", """{ "a": "أ", "z": "ز" }""");
-        var f = Assert.Single(result.Findings, x => x.Code == "ExtraKey");
-        Assert.Equal(FindingSeverity.Warning, f.Severity);
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "a": "A" }""");
+        workspace.Write("ar.json", """{ "a": "أ", "z": "ز" }""");
+
+        var result = workspace.Lint();
+        var diagnostic = Assert.Single(result.Diagnostics, d => d.Code == DiagnosticCodes.ExtraKey);
+
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
     }
 
     [Fact]
     public void PlaceholderMismatch_IsAnError()
     {
-        var result = LintPair(
-            """{ "d": "Save {0}% for {1} days" }""",
-            """{ "d": "وفّر {0}% لفترة محدودة" }""");
-        Assert.Contains(result.Findings, x => x.Code == "PlaceholderMismatch" && x.Severity == FindingSeverity.Error);
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "d": "Save {0}% for {1} days" }""");
+        workspace.Write("ar.json", """{ "d": "وفّر {0}% لفترة محدودة" }""");
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, d =>
+            d.Code == DiagnosticCodes.PlaceholderMismatch &&
+            d.Severity == DiagnosticSeverity.Error);
     }
 
     [Fact]
     public void EmptyValue_IsAWarning()
     {
-        var result = LintPair("""{ "a": "A" }""", """{ "a": "" }""");
-        Assert.Contains(result.Findings, x => x.Code == "EmptyValue");
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "a": "A" }""");
+        workspace.Write("ar.json", """{ "a": "" }""");
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, d => d.Code == DiagnosticCodes.EmptyValue);
     }
 
     [Fact]
     public void UnisolatedLatin_InArabic_IsFlagged()
     {
-        var result = LintPair(
-            """{ "s": "Built with ASP.NET Core" }""",
-            """{ "s": "مبني باستخدام ASP.NET Core الحديث" }""");
-        Assert.Contains(result.Findings, x => x.Code == "UnisolatedLatin");
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "s": "Built with ASP.NET Core" }""");
+        workspace.Write("ar.json", """{ "s": "مبني باستخدام ASP.NET Core الحديث" }""");
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, d => d.Code == DiagnosticCodes.UnisolatedLatin);
+    }
+
+    [Fact]
+    public void HebrewBidi_IsChecked()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "s": "Built with ASP.NET Core" }""");
+        workspace.Write("he.json", """{ "s": "נבנה עם ASP.NET Core" }""");
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, d => d.Code == DiagnosticCodes.UnisolatedLatin && d.Culture == "he");
+    }
+
+    [Fact]
+    public void RtlContentInBaseCulture_IsStillChecked()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "s": "مبني باستخدام ASP.NET Core" }""");
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, d => d.Code == DiagnosticCodes.UnisolatedLatin);
     }
 
     [Fact]
     public void LatinProblems_InEnglish_AreNotBidiFindings()
     {
-        // Bidi checks only run on RTL cultures; English text is out of scope.
-        var result = LintPair("""{ "s": "ASP.NET Core" }""", """{ "s": "ASP.NET Core" }""");
-        Assert.DoesNotContain(result.Findings, x => x.Code == "UnisolatedLatin");
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "s": "ASP.NET Core" }""");
+        workspace.Write("ar.json", """{ "s": "ASP.NET Core" }""");
+
+        var result = workspace.Lint();
+
+        Assert.DoesNotContain(result.Diagnostics, d => d.Code == DiagnosticCodes.UnisolatedLatin);
     }
 
     [Fact]
     public void CleanPair_HasNoFindings()
     {
-        var result = LintPair(
-            """{ "a": "Home", "n": "{0} products" }""",
-            """{ "a": "الرئيسية", "n": "عدد المنتجات {0}" }""");
-        Assert.Empty(result.Findings);
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "a": "Home", "n": "{0} products" }""");
+        workspace.Write("ar.json", """{ "a": "الرئيسية", "n": "عدد المنتجات {0}" }""");
+
+        var result = workspace.Lint();
+
+        Assert.Empty(result.Diagnostics);
     }
 }

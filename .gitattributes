@@ -1,0 +1,11 @@
+# Keep source and documentation line endings identical on Windows, macOS,
+# and Linux so formatting checks match the repository contract.
+* text=auto eol=lf
+
+# Package and image artifacts are binary.
+*.nupkg binary
+*.snupkg binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
