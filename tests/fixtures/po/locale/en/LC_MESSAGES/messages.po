@@ -1,0 +1,13 @@
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "app.name"
+msgstr "Sewing Store"
+
+msgid "cart.items"
+msgstr "{0} items"
+
+msgctxt "checkout"
+msgid "pay"
+msgstr "Pay"

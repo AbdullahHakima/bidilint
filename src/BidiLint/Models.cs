@@ -1,30 +1,60 @@
 namespace BidiLint;
 
-// One loaded locale file, flattened to dotted keys ("checkout.payNow").
-public sealed class LocaleFile
+public enum LocaleFormat
+{
+    Json,
+    Resx,
+    Arb,
+    Android,
+    AppleStrings,
+    Po,
+}
+
+// One parsed file. Entries keep their source span so diagnostics can point at
+// the exact value rather than only at the culture.
+public sealed class LocaleDocument
 {
     public required string Culture { get; init; }
     public required string FilePath { get; init; }
-    public Dictionary<string, string> Entries { get; } = new(StringComparer.Ordinal);
+    public required LocaleFormat Format { get; init; }
+    public required string ResourceSet { get; init; }
+    public required SourceText Source { get; init; }
+
+    public Dictionary<string, LocaleEntry> Entries { get; } = new(StringComparer.Ordinal);
 }
 
-public enum FindingSeverity
+public sealed class LocaleEntry
 {
-    Warning,
-    Error,
+    public required string Key { get; init; }
+    public required string Value { get; init; }
+    public required LocaleDocument Document { get; init; }
+    public SourceSpan? Span { get; init; }
+    public SourceSpan? KeySpan { get; init; }
 }
-
-public sealed record Finding(
-    FindingSeverity Severity,
-    string Code,
-    string Culture,
-    string Key,
-    string Message);
 
 public sealed class LintResult
 {
-    public List<LocaleFile> Files { get; } = new();
-    public List<Finding> Findings { get; } = new();
+    public List<LocaleDocument> Documents { get; } = new();
+    public List<Diagnostic> Diagnostics { get; } = new();
     public int KeyCount { get; set; }
     public long ElapsedMilliseconds { get; set; }
+    public string BaseCulture { get; set; } = "en";
+    public string WorkingDirectory { get; set; } = Directory.GetCurrentDirectory();
+
+    public int ErrorCount => Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
+    public int WarningCount => Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
+}
+
+public sealed class LoadResult
+{
+    public List<LocaleDocument> Documents { get; } = new();
+    public List<Diagnostic> Diagnostics { get; } = new();
+    public List<string> CandidateFiles { get; } = new();
+    public string WorkingDirectory { get; set; } = Directory.GetCurrentDirectory();
+
+    public bool HasInputErrors => Diagnostics.Any(d =>
+        d.Code is DiagnosticCodes.PathNotFound
+            or DiagnosticCodes.UnreadablePath
+            or DiagnosticCodes.UnsupportedFile
+            or DiagnosticCodes.CultureNotFound);
 }

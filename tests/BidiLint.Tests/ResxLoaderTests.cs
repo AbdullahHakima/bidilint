@@ -1,22 +1,9 @@
-using BidiLint;
 using Xunit;
 
 namespace BidiLint.Tests;
 
-public class ResxLoaderTests : IDisposable
+public class ResxLoaderTests
 {
-    private readonly string _dir;
-
-    public ResxLoaderTests()
-    {
-        _dir = Path.Combine(Path.GetTempPath(), "bidilint-tests-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(_dir);
-    }
-
-    public void Dispose() => Directory.Delete(_dir, recursive: true);
-
-    private void Write(string name, string content) => File.WriteAllText(Path.Combine(_dir, name), content);
-
     private const string BaseResx = """
         <?xml version="1.0" encoding="utf-8"?>
         <root>
@@ -36,24 +23,27 @@ public class ResxLoaderTests : IDisposable
     [Fact]
     public void NeutralResxCountsAsBaseCulture()
     {
-        Write("Strings.resx", BaseResx);
-        Write("Strings.ar.resx", ArResx);
+        using var workspace = new TestWorkspace();
+        workspace.Write("Strings.resx", BaseResx);
+        workspace.Write("Strings.ar.resx", ArResx);
 
-        var files = LocaleLoader.LoadFolder(_dir, "en");
+        var load = workspace.Load();
 
-        Assert.Equal(2, files.Count);
-        var en = files.Single(f => f.Culture == "en");
-        Assert.Equal("Pay {0}", en.Entries["checkout.payNow"]);
+        Assert.Equal(2, load.Documents.Count);
+        var en = Assert.Single(load.Documents, document => document.Culture == "en");
+        Assert.Equal("Strings", en.ResourceSet);
+        Assert.Equal("Pay {0}", en.Entries["checkout.payNow"].Value);
     }
 
     [Fact]
     public void NonStringDataIsSkipped()
     {
-        Write("Strings.resx", BaseResx);
+        using var workspace = new TestWorkspace();
+        workspace.Write("Strings.resx", BaseResx);
 
-        var files = LocaleLoader.LoadFolder(_dir, "en");
+        var load = workspace.Load();
 
-        var en = files.Single();
+        var en = load.Documents.Single();
         Assert.False(en.Entries.ContainsKey("logo"));
         Assert.Equal(2, en.Entries.Count);
     }
@@ -61,39 +51,114 @@ public class ResxLoaderTests : IDisposable
     [Fact]
     public void SatelliteResxGetsItsCulture()
     {
-        Write("Strings.resx", BaseResx);
-        Write("Strings.ar.resx", ArResx);
+        using var workspace = new TestWorkspace();
+        workspace.Write("Strings.resx", BaseResx);
+        workspace.Write("Strings.ar.resx", ArResx);
 
-        var files = LocaleLoader.LoadFolder(_dir, "en");
+        var load = workspace.Load();
 
-        var ar = files.Single(f => f.Culture == "ar");
-        Assert.Equal("المتجر", ar.Entries["app.title"]);
+        var ar = Assert.Single(load.Documents, document => document.Culture == "ar");
+        Assert.Equal("المتجر", ar.Entries["app.title"].Value);
     }
 
     [Fact]
-    public void JsonAndResxMergeWithJsonWinning()
+    public void DottedNeutralResxIsItsOwnResourceSet()
     {
-        Write("Strings.resx", BaseResx);
-        Write("en.json", """{ "app": { "title": "From JSON" }, "only": { "json": "x" } }""");
+        using var workspace = new TestWorkspace();
+        workspace.Write("App.Resources.resx", BaseResx);
 
-        var files = LocaleLoader.LoadFolder(_dir, "en");
+        var load = workspace.Load();
 
-        var en = files.Single(f => f.Culture == "en");
-        Assert.Equal("From JSON", en.Entries["app.title"]);
-        Assert.Equal("x", en.Entries["only.json"]);
-        Assert.Equal("Pay {0}", en.Entries["checkout.payNow"]);
+        var en = load.Documents.Single();
+        Assert.Equal("en", en.Culture);
+        Assert.Equal("App.Resources", en.ResourceSet);
+    }
+
+    [Fact]
+    public void ResourceSets_AreComparedSeparately()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("Strings.resx", """
+            <root><data name="title"><value>Store</value></data></root>
+            """);
+        workspace.Write("Strings.ar.resx", """
+            <root><data name="title"><value>متجر</value></data></root>
+            """);
+        workspace.Write("Errors.resx", """
+            <root><data name="title"><value>Error</value></data></root>
+            """);
+        workspace.Write("Errors.ar.resx", """
+            <root><data name="title"><value>خطأ</value></data></root>
+            """);
+
+        var result = workspace.Lint();
+
+        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
+            diagnostic.Code is DiagnosticCodes.KeyCollision or DiagnosticCodes.MissingKey);
+    }
+
+    [Fact]
+    public void MalformedResx_IsReported()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("Strings.resx", BaseResx);
+        workspace.Write("Strings.ar.resx", """<root><data name="a">""");
+
+        var load = workspace.Load();
+
+        var diagnostic = Assert.Single(load.Diagnostics, d => d.Code == DiagnosticCodes.MalformedFile);
+        Assert.Equal("ar", diagnostic.Culture);
+    }
+
+    [Fact]
+    public void DuplicateResxKey_IsReported()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("Strings.resx", """
+            <root>
+              <data name="a"><value>first</value></data>
+              <data name="a"><value>second</value></data>
+            </root>
+            """);
+
+        var load = workspace.Load();
+
+        var diagnostic = Assert.Single(load.Diagnostics, d => d.Code == DiagnosticCodes.DuplicateKey);
+        Assert.Equal("a", diagnostic.Key);
+        Assert.Equal("first", load.Documents.Single().Entries["a"].Value);
+    }
+
+    [Fact]
+    public void JsonAndResxRemainSeparateResourceSets()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("Strings.resx", BaseResx);
+        workspace.Write("Strings.ar.resx", ArResx);
+        workspace.Write("en.json", """{ "app": { "title": "From JSON" } }""");
+        workspace.Write("ar.json", """{ "app": { "title": "من JSON" } }""");
+
+        var load = workspace.Load();
+
+        Assert.Equal(4, load.Documents.Count);
+        Assert.Contains(load.Documents, document =>
+            document.Format == LocaleFormat.Json && document.Culture == "en");
+        Assert.Contains(load.Documents, document =>
+            document.Format == LocaleFormat.Resx && document.Culture == "en");
+        Assert.DoesNotContain(load.Diagnostics, d => d.Code == DiagnosticCodes.KeyCollision);
     }
 
     [Fact]
     public void LintRunsAcrossResxFiles()
     {
-        Write("Strings.resx", BaseResx);
-        Write("Strings.ar.resx", ArResx);
+        using var workspace = new TestWorkspace();
+        workspace.Write("Strings.resx", BaseResx);
+        workspace.Write("Strings.ar.resx", ArResx);
 
-        var files = LocaleLoader.LoadFolder(_dir, "en");
-        var result = Linter.Lint(files, files.Single(f => f.Culture == "en"));
+        var result = workspace.Lint();
 
-        Assert.Contains(result.Findings,
-            f => f.Code == "MissingKey" && f.Culture == "ar" && f.Key == "checkout.payNow");
+        Assert.Contains(result.Diagnostics,
+            diagnostic => diagnostic.Code == DiagnosticCodes.MissingKey &&
+                          diagnostic.Culture == "ar" &&
+                          diagnostic.Key == "checkout.payNow");
     }
 }

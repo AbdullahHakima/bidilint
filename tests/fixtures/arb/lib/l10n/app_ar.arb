@@ -1,0 +1,12 @@
+{
+  "@@locale": "ar",
+  "appName": "متجر خياطة",
+  "brand": "مبني على ASP.NET Core",
+  "itemCount": "{count, plural, one {عنصر} other {{count} عنصر}}",
+  "@itemCount": {
+    "description": "عدد العناصر",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  }
+}

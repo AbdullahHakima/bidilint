@@ -1,106 +1,95 @@
-using System.Text.Json;
-
 namespace BidiLint;
 
-// Loads locale files from a folder tree. Two shapes are supported:
-//   JSON — one file per culture, named by culture ("ar.json", "en-US.json");
-//          nested objects flatten to dotted keys.
-//   resx — "Strings.ar.resx" per culture, plus a neutral "Strings.resx"
-//          which counts as the base culture.
-// A culture found in both shapes is merged (JSON wins on duplicate keys —
-// it is the shape the dashboard-style tools edit most).
+// Discovers locale files and turns them into LocaleDocuments through format
+// adapters. Parsing never silently drops a candidate: invalid content,
+// duplicate keys, and collisions become diagnostics.
 public static class LocaleLoader
 {
-    public static List<LocaleFile> LoadFolder(string root, string baseCulture = "en")
+    private static readonly ILocaleAdapter[] Adapters =
+    [
+        new AndroidAdapter(),
+        new AppleStringsAdapter(),
+        new ArbAdapter(),
+        new PoAdapter(),
+        new JsonCultureDirectoryAdapter(),
+        new JsonFileAdapter(),
+        new ResxAdapter(),
+    ];
+
+    public static LoadResult Load(
+        IEnumerable<string> paths,
+        string baseCulture = "en",
+        string? workingDirectory = null)
     {
-        var byCulture = new Dictionary<string, LocaleFile>(StringComparer.OrdinalIgnoreCase);
+        var cwd = Path.GetFullPath(workingDirectory ?? Directory.GetCurrentDirectory());
+        var normalizedBase = CultureTag.TryParse(baseCulture, out var baseTag)
+            ? baseTag!.Name
+            : baseCulture;
 
-        LocaleFile For(string culture, string path)
+        var discovery = FileDiscovery.Discover(paths, cwd);
+        var result = new LoadResult { WorkingDirectory = cwd };
+        result.Diagnostics.AddRange(discovery.Diagnostics);
+        result.CandidateFiles.AddRange(discovery.Files.Select(file => file.FullPath));
+
+        foreach (var file in discovery.Files)
         {
-            if (!byCulture.TryGetValue(culture, out var file))
+            ILocaleAdapter? adapter = null;
+            LocaleIdentity? identity = null;
+
+            foreach (var candidate in Adapters)
             {
-                file = new LocaleFile { Culture = culture, FilePath = path };
-                byCulture[culture] = file;
+                identity = candidate.Identify(file.FullPath, cwd, normalizedBase);
+                if (identity is null) continue;
+                adapter = candidate;
+                break;
             }
-            return file;
-        }
 
-        foreach (var path in Directory.EnumerateFiles(root, "*.json", SearchOption.AllDirectories)
-                     .Where(p => !IsSkipped(p))
-                     .OrderBy(p => p, StringComparer.Ordinal))
-        {
-            var culture = Path.GetFileNameWithoutExtension(path);
-            if (!LooksLikeCulture(culture)) continue;
+            if (identity is null || adapter is null)
+            {
+                if (file.IsExplicit) AddUnidentified(result, file, normalizedBase);
+                continue;
+            }
 
-            var file = For(culture, path);
+            LocaleDocument? document;
             try
             {
-                using var doc = JsonDocument.Parse(File.ReadAllText(path));
-                if (doc.RootElement.ValueKind == JsonValueKind.Object)
-                    Flatten(doc.RootElement, "", file.Entries, overwrite: false);
+                document = adapter.Load(identity, result.Diagnostics);
             }
-            catch (JsonException)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                // A file that does not parse is skipped here; malformed JSON is a
-                // build problem, not a bidi one. (A parse check can join later.)
+                result.Diagnostics.Add(new Diagnostic(
+                    DiagnosticCodes.UnreadablePath,
+                    DiagnosticSeverity.Error,
+                    $"Cannot read file: {ex.Message}",
+                    file.FullPath,
+                    Culture: identity.Culture));
+                continue;
             }
+
+            if (document is not null) result.Documents.Add(document);
         }
 
-        foreach (var path in Directory.EnumerateFiles(root, "*.resx", SearchOption.AllDirectories)
-                     .Where(p => !IsSkipped(p))
-                     .OrderBy(p => p, StringComparer.Ordinal))
-        {
-            var culture = ResxLoader.CultureOf(path, baseCulture);
-            if (culture is null) continue;
-
-            var file = For(culture, path);
-            foreach (var (key, value) in ResxLoader.Load(path))
-            {
-                if (!file.Entries.ContainsKey(key))
-                    file.Entries[key] = value;
-            }
-        }
-
-        return byCulture.Values.OrderBy(f => f.Culture, StringComparer.Ordinal).ToList();
+        result.Documents.Sort((left, right) =>
+            string.Compare(left.FilePath, right.FilePath, StringComparison.Ordinal));
+        return result;
     }
 
-    private static bool IsSkipped(string path) =>
-        path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-            .Any(seg => seg is "bin" or "obj" or ".git" or "node_modules");
-
-    // Cultures look like "en", "ar", "en-US", "ar-EG". This keeps package.json
-    // and friends out without a config file.
-    internal static bool LooksLikeCulture(string name) =>
-        name.Length is >= 2 and <= 5 &&
-        name.All(c => char.IsLetter(c) || c == '-') &&
-        char.IsLetter(name[0]);
-
-    private static void Flatten(JsonElement element, string prefix, Dictionary<string, string> into, bool overwrite)
+    private static void AddUnidentified(LoadResult result, DiscoveredFile file, string baseCulture)
     {
-        foreach (var prop in element.EnumerateObject())
+        if (Path.GetExtension(file.FullPath).Equals(".json", StringComparison.OrdinalIgnoreCase))
         {
-            var key = prefix.Length == 0 ? prop.Name : $"{prefix}.{prop.Name}";
-            switch (prop.Value.ValueKind)
-            {
-                case JsonValueKind.Object:
-                    Flatten(prop.Value, key, into, overwrite);
-                    break;
-                case JsonValueKind.String:
-                    if (overwrite || !into.ContainsKey(key))
-                        into[key] = prop.Value.GetString() ?? "";
-                    break;
-                case JsonValueKind.Array:
-                    // Arrays of strings are common for lists of labels; index them.
-                    var i = 0;
-                    foreach (var item in prop.Value.EnumerateArray())
-                    {
-                        if (item.ValueKind == JsonValueKind.String &&
-                            (overwrite || !into.ContainsKey($"{key}[{i}]")))
-                            into[$"{key}[{i}]"] = item.GetString() ?? "";
-                        i++;
-                    }
-                    break;
-            }
+            result.Diagnostics.Add(new Diagnostic(
+                DiagnosticCodes.CultureNotFound,
+                DiagnosticSeverity.Error,
+                $"Cannot read a culture from the file name \"{Path.GetFileName(file.FullPath)}\". Use a name such as en.json, ar-EG.json, or place it under locales/<culture>/.",
+                file.FullPath));
+            return;
         }
+
+        result.Diagnostics.Add(new Diagnostic(
+            DiagnosticCodes.UnsupportedFile,
+            DiagnosticSeverity.Error,
+            "No supported locale layout matched this file. Expected JSON, .resx, Android res/values XML, Apple .strings, gettext .po/.pot, or Flutter .arb.",
+            file.FullPath));
     }
 }

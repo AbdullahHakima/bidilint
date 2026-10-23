@@ -1,0 +1,10 @@
+<resources>
+  <string name="app_name">Sewing Store</string>
+  <string name="cart.items">{0} items</string>
+  <string name="brand">ASP.NET Core</string>
+  <string name="build_only" translatable="false">Debug</string>
+  <plurals name="messages">
+    <item quantity="one">{0} message</item>
+    <item quantity="other">{0} messages</item>
+  </plurals>
+</resources>
