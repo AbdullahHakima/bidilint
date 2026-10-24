@@ -4,7 +4,11 @@ namespace BidiLint;
 // remains the fallback when a file is not inside a recognized culture folder.
 internal sealed class JsonFileAdapter : ILocaleAdapter
 {
-    public LocaleIdentity? Identify(string path, string workingDirectory, string baseCulture)
+    public LocaleIdentity? Identify(
+        string path,
+        string workingDirectory,
+        string baseCulture,
+        IReadOnlySet<string>? layoutNames = null)
     {
         if (!Path.GetExtension(path).Equals(".json", StringComparison.OrdinalIgnoreCase))
             return null;
@@ -35,7 +39,11 @@ internal sealed class JsonFileAdapter : ILocaleAdapter
 // "en" is not mistaken for a locale.
 internal sealed class JsonCultureDirectoryAdapter : ILocaleAdapter
 {
-    public LocaleIdentity? Identify(string path, string workingDirectory, string baseCulture)
+    public LocaleIdentity? Identify(
+        string path,
+        string workingDirectory,
+        string baseCulture,
+        IReadOnlySet<string>? layoutNames = null)
     {
         if (!Path.GetExtension(path).Equals(".json", StringComparison.OrdinalIgnoreCase))
             return null;
@@ -46,7 +54,7 @@ internal sealed class JsonCultureDirectoryAdapter : ILocaleAdapter
         for (var i = segments.Length - 2; i >= 1; i--)
         {
             if (!CultureTag.TryParse(segments[i], out var tag)) continue;
-            if (!LocalePath.IsLayoutName(segments[i - 1])) continue;
+            if (!LocalePath.IsLayoutName(segments[i - 1], layoutNames)) continue;
 
             return new LocaleIdentity(
                 path,

@@ -55,6 +55,8 @@ public static class DiagnosticCodes
     public const string UnbalancedIsolates = nameof(UnbalancedIsolates);
     public const string BaseCultureMissing = nameof(BaseCultureMissing);
     public const string NoLocaleFiles = nameof(NoLocaleFiles);
+    public const string StaleSuppression = nameof(StaleSuppression);
+    public const string StaleBaseline = nameof(StaleBaseline);
 }
 
 public static class DiagnosticOrder
@@ -83,7 +85,13 @@ public static class DiagnosticOrder
         result = string.Compare(left.Code, right.Code, StringComparison.Ordinal);
         if (result != 0) return result;
 
-        return string.Compare(left.Key, right.Key, StringComparison.Ordinal);
+        result = string.Compare(left.Key, right.Key, StringComparison.Ordinal);
+        if (result != 0) return result;
+
+        result = string.Compare(left.Culture, right.Culture, StringComparison.Ordinal);
+        if (result != 0) return result;
+
+        return string.Compare(left.Message, right.Message, StringComparison.Ordinal);
     }
 
     private static int StartLine(Diagnostic diagnostic) =>

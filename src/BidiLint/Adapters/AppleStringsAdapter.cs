@@ -8,7 +8,11 @@ namespace BidiLint;
 // comments, quoted and bare tokens, and the usual C-style escapes are handled.
 internal sealed class AppleStringsAdapter : ILocaleAdapter
 {
-    public LocaleIdentity? Identify(string path, string workingDirectory, string baseCulture)
+    public LocaleIdentity? Identify(
+        string path,
+        string workingDirectory,
+        string baseCulture,
+        IReadOnlySet<string>? layoutNames = null)
     {
         if (!Path.GetExtension(path).Equals(".strings", StringComparison.OrdinalIgnoreCase))
             return null;

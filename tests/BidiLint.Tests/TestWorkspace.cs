@@ -27,6 +27,19 @@ internal sealed class TestWorkspace : IDisposable
     public LintResult Lint(string baseCulture = "en") =>
         Linter.Lint(Load(baseCulture), baseCulture);
 
+    public (int Code, string Stdout, string Stderr) RunCli(params string[] args) =>
+        RunCli(null, args);
+
+    public (int Code, string Stdout, string Stderr) RunCli(
+        IReadOnlyDictionary<string, string>? environment,
+        params string[] args)
+    {
+        var stdout = new StringWriter();
+        var stderr = new StringWriter();
+        var code = Cli.Run(args, stdout, stderr, Root, environment);
+        return (code, stdout.ToString(), stderr.ToString());
+    }
+
     public void Dispose()
     {
         try

@@ -109,6 +109,44 @@ public class ReporterTests
         }
     }
 
+    [Fact]
+    public void ColorAndQuietAreAppliedToTextOutput()
+    {
+        var root = CreateRoot();
+        try
+        {
+            var source = SourceText.FromText("{\"a\":\"x\"}");
+            var ar = Document(root, "ar.json", "ar", source);
+            var result = new LintResult { BaseCulture = "en", WorkingDirectory = root };
+            result.Documents.Add(ar);
+            result.Diagnostics.Add(new Diagnostic(
+                DiagnosticCodes.EmptyValue,
+                DiagnosticSeverity.Warning,
+                "Value is empty or whitespace.",
+                ar.FilePath,
+                new SourceSpan(source.PositionAt(1, 6), source.PositionAt(1, 9)),
+                "ar",
+                "a"));
+
+            using var colored = new StringWriter();
+            Reporter.Print(result, colored, new ReporterOptions(Color: true));
+            Assert.Contains("\u001b[33m", colored.ToString(), StringComparison.Ordinal);
+
+            using var plain = new StringWriter();
+            Reporter.Print(result, plain, new ReporterOptions(Color: false));
+            Assert.DoesNotContain("\u001b[", plain.ToString(), StringComparison.Ordinal);
+
+            using var quiet = new StringWriter();
+            Reporter.Print(result, quiet, new ReporterOptions(Quiet: true));
+            Assert.DoesNotContain("EmptyValue", quiet.ToString(), StringComparison.Ordinal);
+            Assert.Contains("1 warning(s)", quiet.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static string CreateRoot()
     {
         var root = Path.Combine(Path.GetTempPath(), "bidilint-reporter-" + Guid.NewGuid().ToString("N"));

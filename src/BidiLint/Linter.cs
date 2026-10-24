@@ -6,12 +6,22 @@ public static class Linter
 {
     public static bool IsRtl(string culture) => CultureTag.IsRtl(culture);
 
-    public static LintResult Lint(LoadResult load, string baseCulture)
+    internal static bool IsRtl(string culture, LintConfig config) =>
+        CultureTag.IsRtl(culture) || config.RtlCultures.Contains(culture);
+
+    public static LintResult Lint(LoadResult load, string baseCulture) =>
+        Lint(load, baseCulture, LintConfig.Default);
+
+    internal static LintResult Lint(
+        LoadResult load,
+        string baseCulture,
+        LintConfig config)
     {
         var result = new LintResult
         {
             BaseCulture = baseCulture,
             WorkingDirectory = load.WorkingDirectory,
+            ConfigPath = config.ConfigPath,
         };
         result.Documents.AddRange(load.Documents);
         result.Diagnostics.AddRange(load.Diagnostics);
@@ -75,17 +85,21 @@ public static class Linter
             }
             else if (!CultureEquals(set.Culture, baseCulture))
             {
-                CompareToBase(result, baseSet, set);
+                CompareToBase(result, baseSet, set, config);
             }
 
-            CheckValues(result, set);
+            CheckValues(result, set, config);
         }
 
         Sort(result);
         return result;
     }
 
-    private static void CompareToBase(LintResult result, LocaleSet baseSet, LocaleSet set)
+    private static void CompareToBase(
+        LintResult result,
+        LocaleSet baseSet,
+        LocaleSet set,
+        LintConfig config)
     {
         foreach (var key in baseSet.Entries.Keys.OrderBy(k => k, StringComparer.Ordinal))
         {
@@ -111,6 +125,8 @@ public static class Linter
             }
 
             if (string.IsNullOrWhiteSpace(entry.Value)) continue;
+
+            if (config.PlaceholderDialect == PlaceholderDialect.None) continue;
 
             var basePlaceholders = BidiScanner.Placeholders(baseEntry.Value);
             var placeholders = BidiScanner.Placeholders(entry.Value);
@@ -150,7 +166,7 @@ public static class Linter
         }
     }
 
-    private static void CheckValues(LintResult result, LocaleSet set)
+    private static void CheckValues(LintResult result, LocaleSet set, LintConfig config)
     {
         foreach (var entry in set.Entries.Values.OrderBy(e => e.Key, StringComparer.Ordinal))
         {
@@ -168,13 +184,14 @@ public static class Linter
             }
 
             var scan = BidiScanner.Scan(entry.Value);
-            var rtlCulture = IsRtl(set.Culture);
+            var rtlCulture = IsRtl(set.Culture, config);
             if (!rtlCulture && !scan.HasRtlScript) continue;
 
-            if (scan.HasRtlScript)
+            if (scan.HasRtlScript && config.IsolationStyle == IsolationStyle.Isolate)
             {
                 foreach (var run in scan.UnisolatedLatinRuns)
                 {
+                    if (IsAllowedLatin(run, set.Culture, config)) continue;
                     result.Diagnostics.Add(new Diagnostic(
                         DiagnosticCodes.UnisolatedLatin,
                         DiagnosticSeverity.Warning,
@@ -186,14 +203,12 @@ public static class Linter
                 }
             }
 
-            if ((scan.HasRtlScript || rtlCulture) &&
-                scan.HasWesternDigits &&
-                scan.HasArabicIndicDigits)
+            if (ViolatesNumeralPolicy(scan, config.NumeralPolicy))
             {
                 result.Diagnostics.Add(new Diagnostic(
                     DiagnosticCodes.MixedNumerals,
                     DiagnosticSeverity.Warning,
-                    "Mixes Western digits (0-9) and Arabic-Indic digits (٠-٩) in one string; pick one numeral system per string.",
+                    NumeralMessage(config.NumeralPolicy),
                     entry.Document.FilePath,
                     entry.Span,
                     set.Culture,
@@ -225,6 +240,35 @@ public static class Linter
             }
         }
     }
+
+    private static bool IsAllowedLatin(string run, string culture, LintConfig config)
+    {
+        if (config.AllowLatin.Any(term => term.AppliesTo(culture) && term.Matches(run)))
+            return true;
+
+        return config.Rules.TryGetValue(DiagnosticCodes.UnisolatedLatin, out var rule) &&
+               rule.Allow.Any(term => string.Equals(term, run, StringComparison.Ordinal));
+    }
+
+    private static bool ViolatesNumeralPolicy(StringScan scan, NumeralPolicy policy) =>
+        policy switch
+        {
+            NumeralPolicy.Allow => false,
+            NumeralPolicy.Western => scan.HasArabicIndicDigits,
+            NumeralPolicy.ArabicIndic => scan.HasWesternDigits,
+            _ => scan.HasWesternDigits && scan.HasArabicIndicDigits,
+        };
+
+    private static string NumeralMessage(NumeralPolicy policy) =>
+        policy switch
+        {
+            NumeralPolicy.Western =>
+                "Numeral policy is western, but Arabic-Indic digits (٠-٩) were found; use Western digits (0-9).",
+            NumeralPolicy.ArabicIndic =>
+                "Numeral policy is Arabic-Indic, but Western digits (0-9) were found; use Arabic-Indic digits (٠-٩).",
+            _ =>
+                "Mixes Western digits (0-9) and Arabic-Indic digits (٠-٩) in one string; pick one numeral system per string.",
+        };
 
     private static void Sort(LintResult result) =>
         result.Diagnostics.Sort(DiagnosticOrder.ByLocation);

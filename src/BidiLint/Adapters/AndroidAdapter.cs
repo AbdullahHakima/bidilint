@@ -8,7 +8,11 @@ namespace BidiLint;
 // qualifiers (night, sw600dp, land) are intentionally not treated as locales.
 internal sealed class AndroidAdapter : ILocaleAdapter
 {
-    public LocaleIdentity? Identify(string path, string workingDirectory, string baseCulture)
+    public LocaleIdentity? Identify(
+        string path,
+        string workingDirectory,
+        string baseCulture,
+        IReadOnlySet<string>? layoutNames = null)
     {
         if (!Path.GetExtension(path).Equals(".xml", StringComparison.OrdinalIgnoreCase))
             return null;

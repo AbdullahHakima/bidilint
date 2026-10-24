@@ -11,7 +11,11 @@ internal sealed record LocaleIdentity(
 // the file format; they consume LocaleDocument entries.
 internal interface ILocaleAdapter
 {
-    LocaleIdentity? Identify(string path, string workingDirectory, string baseCulture);
+    LocaleIdentity? Identify(
+        string path,
+        string workingDirectory,
+        string baseCulture,
+        IReadOnlySet<string>? layoutNames = null);
 
     LocaleDocument? Load(LocaleIdentity identity, List<Diagnostic> diagnostics);
 }

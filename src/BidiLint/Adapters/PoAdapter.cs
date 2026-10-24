@@ -10,7 +10,11 @@ namespace BidiLint;
 // comparison planned for 0.7. POT templates use msgid as the base value.
 internal sealed class PoAdapter : ILocaleAdapter
 {
-    public LocaleIdentity? Identify(string path, string workingDirectory, string baseCulture)
+    public LocaleIdentity? Identify(
+        string path,
+        string workingDirectory,
+        string baseCulture,
+        IReadOnlySet<string>? layoutNames = null)
     {
         var extension = Path.GetExtension(path);
         if (!extension.Equals(".po", StringComparison.OrdinalIgnoreCase) &&
@@ -47,7 +51,7 @@ internal sealed class PoAdapter : ILocaleAdapter
             return new LocaleIdentity(path, culture, resourceSet, LocaleFormat.Po);
         }
 
-        if (isTemplate && segments.Length >= 2 && LocalePath.IsLayoutName(segments[^2]))
+        if (isTemplate && segments.Length >= 2 && LocalePath.IsLayoutName(segments[^2], layoutNames))
         {
             var resourceSet = Path.ChangeExtension(
                 string.Join('/', segments),
@@ -55,7 +59,7 @@ internal sealed class PoAdapter : ILocaleAdapter
             return new LocaleIdentity(path, baseCulture, resourceSet, LocaleFormat.Po);
         }
 
-        if (!isTemplate && segments.Length >= 2 && LocalePath.IsLayoutName(segments[^2]))
+        if (!isTemplate && segments.Length >= 2 && LocalePath.IsLayoutName(segments[^2], layoutNames))
         {
             var stem = Path.GetFileNameWithoutExtension(path);
             if (!CultureTag.TryParse(stem, out var tag)) return null;
