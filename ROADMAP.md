@@ -369,13 +369,13 @@ and fail only on newly introduced findings; every suppression is auditable.
 **Why:** this is the differentiator. A bidi linter that cannot explain visual
 order or handle Hebrew is a demo, not a tool.
 
-- [ ] Iterate over Unicode scalar values (`Rune`), not UTF-16 `char`, and
+- [x] Iterate over Unicode scalar values (`Rune`), not UTF-16 `char`, and
       generate bidi/script tables from a pinned Unicode version. Record the
       Unicode version in the report and `--version`.
-- [ ] Implement or bind a UAX #9 resolver: paragraph level, explicit
+- [x] Implement a UAX #9 resolver: paragraph level, explicit
       embeddings/isolates, weak/neutral resolution, implicit levels, and
-      reordering. Validate against Unicode `BidiTest.txt` and
-      `BidiCharacterTest.txt`; publish the conformance subset.
+      reordering. Validated against the full Unicode 17.0.0 `BidiTest.txt` and
+      `BidiCharacterTest.txt` suites, checked in as compressed fixtures.
 - [ ] Replace the Arabic-only gate with script detection: Arabic, Hebrew,
       Syriac, Thaana, N'Ko, Samaritan, Mandaic, Adlam, and configured scripts.
 - [ ] Detect RTL from culture language, script subtag, and content. `he` and
