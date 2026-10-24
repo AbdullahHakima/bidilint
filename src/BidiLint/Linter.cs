@@ -19,6 +19,7 @@ public static class Linter
     {
         var result = new LintResult
         {
+            UnicodeVersion = UnicodeInfo.Version,
             BaseCulture = baseCulture,
             WorkingDirectory = load.WorkingDirectory,
             ConfigPath = config.ConfigPath,

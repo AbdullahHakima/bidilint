@@ -2,5 +2,6 @@ bin/
 obj/
 artifacts/
 .tools/
+tools/.unicode-cache/
 .vs/
 *.user

@@ -673,7 +673,7 @@ Requirements:
   "schemaVersion": "1.0",
   "tool": "BidiLint",
   "version": "1.0.0",
-  "unicodeVersion": "16.0",
+  "unicodeVersion": "17.0.0",
   "baseCulture": "en",
   "keyCount": 842,
   "errors": 3,

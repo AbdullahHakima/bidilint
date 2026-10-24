@@ -62,6 +62,7 @@ public static class Reporter
             SchemaVersion: "1.0",
             Tool: "BidiLint",
             Version: ToolInfo.Version,
+            UnicodeVersion: result.UnicodeVersion,
             BaseCulture: result.BaseCulture,
             ConfigPath: OptionalPath(result.WorkingDirectory, result.ConfigPath),
             Files: result.Documents
@@ -189,6 +190,7 @@ public static class Reporter
         string SchemaVersion,
         string Tool,
         string Version,
+        string UnicodeVersion,
         string BaseCulture,
         string? ConfigPath,
         List<JsonFile> Files,

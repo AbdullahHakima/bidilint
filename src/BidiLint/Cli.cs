@@ -23,7 +23,7 @@ public static class Cli
 
         if (parsed.ShowVersion)
         {
-            stdout.WriteLine($"BidiLint {ToolInfo.Version}");
+            stdout.WriteLine($"BidiLint {ToolInfo.Version} (Unicode {UnicodeInfo.Version})");
             return ExitCodes.Ok;
         }
 

@@ -6,6 +6,8 @@ public static class ToolInfo
 {
     public static string Version { get; } = ReadVersion();
 
+    public static string UnicodeVersion => UnicodeInfo.Version;
+
     private static string ReadVersion()
     {
         var assembly = typeof(ToolInfo).Assembly;
