@@ -55,11 +55,16 @@ public class CultureTagTests
     [InlineData("yi", true)]
     [InlineData("az-Arab", true)]
     [InlineData("ku-Arab", true)]
+    [InlineData("en-Arab", true)]
     [InlineData("en", false)]
     [InlineData("az-Latn", false)]
     [InlineData("sr-Latn", false)]
+    [InlineData("ar-Latn", false)]
+    [InlineData("he-Latn", false)]
+    [InlineData("ku-Latn", false)]
     public void RightToLeft_IsDerivedFromLanguageAndScript(string value, bool expected)
     {
         Assert.Equal(expected, CultureTag.IsRtl(value));
+        Assert.Equal(expected, Linter.IsRtl(value));
     }
 }

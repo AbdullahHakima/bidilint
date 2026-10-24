@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace BidiLint;
@@ -14,6 +15,17 @@ internal static class UnicodeInfo
     public static UnicodeScript GetScript(Rune rune) => FindScript(rune.Value);
 
     public static bool IsRtlBidiClass(BidiClass value) => value is BidiClass.R or BidiClass.AL;
+
+    // Strong RTL content belongs to a real script. Common characters such as
+    // RLM/ALM, digits, and punctuation do not make an otherwise Latin value
+    // RTL text.
+    public static bool IsRtlCharacter(Rune rune)
+    {
+        var script = GetScript(rune);
+        return script is not (UnicodeScript.Common or UnicodeScript.Inherited or UnicodeScript.Unknown) &&
+               IsRtlBidiClass(GetBidiClass(rune)) &&
+               IsLetter(Rune.GetUnicodeCategory(rune));
+    }
 
     public static bool TryGetBracketPair(Rune rune, out BracketPair pair) =>
         TryFind(UnicodeTables.BracketPairs, rune.Value, item => item.CodePoint, out pair);
@@ -66,6 +78,11 @@ internal static class UnicodeInfo
 
         throw new ArgumentOutOfRangeException(nameof(codePoint), codePoint, "No Unicode range covers this scalar.");
     }
+
+    private static bool IsLetter(UnicodeCategory category) =>
+        category is UnicodeCategory.UppercaseLetter or UnicodeCategory.LowercaseLetter or
+            UnicodeCategory.TitlecaseLetter or UnicodeCategory.ModifierLetter or
+            UnicodeCategory.OtherLetter;
 
     private static bool TryFind<T>(
         T[] values,

@@ -167,7 +167,9 @@ Set a rule to `off`, `error`, `warning`, or `info`. A rule object may also carry
 objects with `match: "exact" | "case-insensitive"`, an optional `reason`, and an
 optional `cultures` scope.
 
-`rtlCultures` supplements the built-in RTL language/script list.
+`rtlCultures` supplements the built-in RTL language/script list. An explicit
+script subtag overrides the language default: `az-Arab` and `en-Arab` are RTL,
+while `ar-Latn` and `ku-Latn` are not.
 `placeholderDialects` currently accepts `auto`, `braced`, `dotnet`, and `none`;
 ICU, printf, and i18next dialect parsing is scheduled for 0.7.
 `numeralPolicy` accepts `mixed` (default), `allow`, `western`, or

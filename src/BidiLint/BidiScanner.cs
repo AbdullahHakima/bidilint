@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace BidiLint;
@@ -40,37 +41,42 @@ public static class BidiScanner
         RegexOptions.Compiled | RegexOptions.NonBacktracking);
 
     public static bool IsArabicChar(char c) =>
-        (c >= '\u0620' && c <= '\u064A') ||   // Arabic
-        (c >= '\u066E' && c <= '\u06D3') ||   // Arabic Supplement letters
-        (c >= '\u06FA' && c <= '\u06FF') ||
-        (c >= '\u0750' && c <= '\u077F') ||   // Arabic Supplement
-        (c >= '\u08A0' && c <= '\u08FF') ||   // Arabic Extended-A
-        (c >= '\uFB50' && c <= '\uFDFF') ||   // Presentation Forms-A
-        (c >= '\uFE70' && c <= '\uFEFF');     // Presentation Forms-B
+        !char.IsSurrogate(c) && IsArabicChar(new Rune(c));
+
+    public static bool IsArabicChar(Rune value) =>
+        UnicodeInfo.GetScript(value) == UnicodeScript.Arabic && UnicodeInfo.IsRtlCharacter(value);
 
     public static bool IsHebrewChar(char c) =>
-        (c >= '\u0590' && c <= '\u05FF') ||   // Hebrew
-        (c >= '\uFB1D' && c <= '\uFB4F');     // Hebrew presentation forms
+        !char.IsSurrogate(c) && IsHebrewChar(new Rune(c));
+
+    public static bool IsHebrewChar(Rune value) =>
+        UnicodeInfo.GetScript(value) == UnicodeScript.Hebrew && UnicodeInfo.IsRtlCharacter(value);
 
     public static bool IsRtlChar(char c) =>
-        IsArabicChar(c) ||
-        IsHebrewChar(c) ||
-        (c >= '\u0700' && c <= '\u074F') ||   // Syriac
-        (c >= '\u0780' && c <= '\u07BF') ||   // Thaana
-        (c >= '\u07C0' && c <= '\u07FF') ||   // NKo
-        (c >= '\u0800' && c <= '\u085F') ||   // Samaritan, Mandaic
-        (c >= '\u0860' && c <= '\u086F') ||   // Syriac Supplement
-        (c >= '\u0870' && c <= '\u089F');     // Arabic Extended-B
+        !char.IsSurrogate(c) && IsRtlChar(new Rune(c));
+
+    public static bool IsRtlChar(Rune value) => UnicodeInfo.IsRtlCharacter(value);
 
     public static StringScan Scan(string value)
     {
-        var hasArabic = value.Any(IsArabicChar);
-        var hasHebrew = value.Any(IsHebrewChar);
+        var hasArabic = false;
+        var hasHebrew = false;
+        var hasRtlScript = false;
+        foreach (var scalar in UnicodeScalars.Enumerate(value))
+        {
+            if (!UnicodeInfo.IsRtlCharacter(scalar.Value)) continue;
+
+            hasRtlScript = true;
+            var script = UnicodeInfo.GetScript(scalar.Value);
+            if (script == UnicodeScript.Arabic) hasArabic = true;
+            if (script == UnicodeScript.Hebrew) hasHebrew = true;
+        }
+
         var scan = new StringScan
         {
             HasArabic = hasArabic,
             HasHebrew = hasHebrew,
-            HasRtlScript = hasArabic || hasHebrew || value.Any(IsRtlChar),
+            HasRtlScript = hasRtlScript,
             HasWesternDigits = value.Any(c => c is >= '0' and <= '9'),
             HasArabicIndicDigits = value.Any(c =>
                 (c >= '\u0660' && c <= '\u0669') || (c >= '\u06F0' && c <= '\u06F9')),
