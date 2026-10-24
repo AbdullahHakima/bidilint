@@ -32,17 +32,30 @@ public sealed class LocaleEntry
     public SourceSpan? KeySpan { get; init; }
 }
 
+public sealed record SuppressedDiagnostic(
+    Diagnostic Diagnostic,
+    string Source,
+    string? Reason,
+    string? Fingerprint);
+
 public sealed class LintResult
 {
     public List<LocaleDocument> Documents { get; } = new();
     public List<Diagnostic> Diagnostics { get; } = new();
+    public List<SuppressedDiagnostic> Suppressed { get; } = new();
     public int KeyCount { get; set; }
     public long ElapsedMilliseconds { get; set; }
     public string BaseCulture { get; set; } = "en";
     public string WorkingDirectory { get; set; } = Directory.GetCurrentDirectory();
+    public string? ConfigPath { get; set; }
+    public bool BaselineUpdated { get; set; }
+    public string? BaselinePath { get; set; }
+    public int BaselineEntryCount { get; set; }
 
     public int ErrorCount => Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Error);
     public int WarningCount => Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Warning);
+    public int InfoCount => Diagnostics.Count(d => d.Severity == DiagnosticSeverity.Info);
+    public int SuppressedCount => Suppressed.Count;
 }
 
 public sealed class LoadResult

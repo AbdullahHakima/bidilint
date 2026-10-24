@@ -2,7 +2,7 @@
 
 > **From a working prototype to a production localization linter teams keep in CI.**
 >
-> Current release: **0.4.0** (2026-10-23) · Target: **1.0.0** · Last reviewed: 2026-10-23
+> Current release: **0.5.0** (2026-10-23) · Target: **1.0.0** · Last reviewed: 2026-10-23
 
 ---
 
@@ -58,33 +58,35 @@ Production is not "more rules". It means all of the following are true:
 | 0.2.0 | `.resx` support, JSON + resx merge per culture, `--format json`, resx sample, NuGet release workflow |
 | 0.3.0 | Diagnostics with source spans, BCP-47 discovery, malformed/duplicate/collision handling, safe discovery, testable CLI, stable exit codes, Hebrew/RTL script detection, CI and package hardening |
 | 0.4.0 | Format adapters for JSON culture dirs, Android, Apple `.strings`, gettext PO/POT, and Flutter ARB; layout-aware resource sets; format-specific diagnostics and fixtures |
+| 0.5.0 | JSONC config and schema, custom layouts/files, rule metadata and generated docs, reasoned ignores, baselines, CI thresholds, quiet/color/debug output |
 
 Verified on 2026-10-23: `dotnet build`, `dotnet test`, and `dotnet format
---verify-no-changes` succeed; **113 tests pass**; the storefront sample reports
+--verify-no-changes` succeed; **164 tests pass**; the storefront sample reports
 4 errors and 5 warnings; the resx sample reports 1 error and 1 warning; the
 packed tool installs and runs in CI. Six locale formats now share one
-span-aware document model.
+span-aware document model, and 0.5 adds an audited adoption path for legacy
+repositories.
 
-### Honest audit after 0.4.0
+### Honest audit after 0.5.0
 
-The foundation and the common format adapters are in place. The remaining
-gaps below drive the next phases.
+The foundation, the common format adapters, and the adoption layer are in
+place. The remaining gaps below drive the next phases.
 
-| Area | After 0.4.0 | Remaining gap |
+| Area | After 0.5.0 | Remaining gap |
 | --- | --- | --- |
-| Discovery | JSON culture files/directories, `.resx` sets, Android `res/values*`, Apple `.lproj`, gettext PO/POT, ARB; generated folders and symlink loops skipped | YAML/i18next variants, custom layout roots, and config-driven include/exclude (0.5) |
+| Discovery | JSON culture files/directories, `.resx` sets, Android `res/values*`, Apple `.lproj`, gettext PO/POT, ARB; generated folders and symlink loops skipped | YAML/i18next variants and richer config discovery (1.1) |
 | Load failures | Malformed JSON/XML/PO/.strings, bad encodings, duplicate keys, and flattening collisions produce positioned diagnostics | Size limits, partial-parse recovery, and diagnostics for every ignored implicit candidate |
 | Provenance | Per-document entries with source spans; format-specific parser positions; comparison findings link to the base | Run-level spans for bidi findings, snippets, and edit ranges for fixes |
-| Text output | Relative `path:line:column`, code, key, message, and related base location | Snippets, SARIF/GitHub annotations, output files, and MSBuild/JUnit formats |
-| Placeholders | Braced-token comparison against the base | Escaped braces, ICU plural/select, printf, i18next, Angular, and format-aware validation (0.7) |
+| Text output | Relative `path:line:column`, code, key, message, related base location, quiet/color modes, suppression counts | Snippets, SARIF/GitHub annotations, output files, and MSBuild/JUnit formats |
+| Placeholders | Braced-token comparison against the base; configurable dialect gate | Escaped braces, ICU plural/select, printf, i18next, Angular, and format-aware validation (0.7) |
 | Bidi checks | Script-aware Arabic/Hebrew/other RTL detection; isolate balance and mixed numerals | Full UAX #9 handling, bidi overrides, Trojan Source controls, and run-level spans (0.6/0.8) |
-| Culture model | BCP-47 validation, explicit layouts, neutral-resource mapping to `--base` | Base auto-detection when neutral resources are ambiguous, config overrides, and custom tags (0.5) |
-| Config | None | Base/ignore/allow lists, per-rule severity, custom layouts, placeholder dialect (0.5) |
-| Baseline | None | Legacy adoption without hiding new defects (0.5) |
-| Integration | Text and JSON schema 1.0 with file/range/format/resourceSet/related fields | SARIF, GitHub annotations, output file, and editor fixes |
+| Culture model | BCP-47 validation, explicit layouts, neutral-resource mapping to `--base`, config overrides and custom layout names | Base auto-detection when neutral resources are ambiguous, and custom tags (1.1) |
+| Config | `bidilint.json`/JSONC, published schema, discovery, `--config`, `--no-config`, `--init`, include/exclude, layouts/files, rules, terms, RTL cultures, output policy | Path-scoped rule severity overrides (0.8), YAML config |
+| Baseline | SHA-256 baseline create/update/apply, stale-entry reporting, tamper validation | Security-rule restrictions and baseline merge workflows (0.6) |
+| Integration | Text and JSON schema 1.0 with file/range/format/resourceSet/related fields; config and suppressed findings in JSON | SARIF, GitHub annotations, output file, and editor fixes |
 | CI | PR matrix (Linux/macOS/Windows), build/test/format/pack/install smoke on both samples, Dependabot | Coverage gate, CodeQL, and release provenance/attestations |
-| Packaging | Version single-source, symbols/snupkg, deterministic build, repository metadata | SourceLink verification, signed packages, and package-validation baseline |
-| Docs | README covers every adapter and limitation; sample is checked by a golden test | Rule docs and stable help URLs, migration guide, and a docs site |
+| Packaging | Version single-source, symbols/snupkg, deterministic build, repository metadata, schema and rule docs in the package | SourceLink verification, signed packages, and package-validation baseline |
+| Docs | README covers every adapter, config, suppressions, baselines, and limitations; rule catalog is generated and synchronized by tests | Migration guide and a docs site |
 
 ### The first five trust bugs
 
@@ -99,8 +101,9 @@ These were the prerequisites before any new format:
    0.3.0.**
 4. Replace regex-only placeholders with format-aware parsers. **Still open;
    0.7.0.**
-5. Make bidi analysis script-aware (Arabic, Hebrew, Syriac, Thaana, N'Ko, …),
-   not Arabic-only. **Script gating done in 0.3.0; full engine in 0.6.0.**
+5. Make bidi analysis script-aware (Arabic, Hebrew, Syriac, Thaana, N'Ko, and
+   other RTL scripts), not Arabic-only. **Script gating done in 0.3.0; full
+   engine in 0.6.0.**
 
 ---
 
@@ -319,7 +322,7 @@ without renaming files first.
 - [ ] Auto-detect the base culture from neutral resources, `values/`,
       `Base.lproj`, or a common default. If candidates are ambiguous, stop
       with the list rather than guessing. (Neutral resources map to the
-      configured base in 0.4; multi-base detection is tracked for 0.5.)
+      configured base in 0.4; multi-base detection is planned for 0.8.)
 
 **Exit criteria:** a realistic JSON, resx, Android, ARB, PO, and `.strings`
 repository can each be linted with zero config or a single config entry; no
@@ -327,31 +330,34 @@ supported file is silently skipped.
 
 ### 0.5.0 — Adoptable in legacy codebases
 
+**Status:** shipped in 0.5.0 (2026-10-23).
+
 **Theme:** config, suppressions, and baselines so teams can turn the tool on
 without a cleanup project.
 
-- [ ] Add `bidilint.json` (JSONC) with a published JSON Schema, `$schema`
+- [x] Add `bidilint.json` (JSONC) with a published JSON Schema, `$schema`
       support, strict unknown-key validation, and helpful suggestions.
-- [ ] Config sections: `baseCulture`, `include`, `exclude`, `files`/`layouts`,
+- [x] Config sections: `baseCulture`, `include`, `exclude`, `files`/`layouts`,
       `rules` (severity and options), `ignore`, `allowLatin`, `rtlCultures`,
       `placeholderDialects`, `numeralPolicy`, `isolationStyle`, `baseline`,
       `failOn`, `output`.
-- [ ] Config discovery walks upward from the target path; `--config` overrides;
+- [x] Config discovery walks upward from the target path; `--config` overrides;
       `--no-config` disables; `--init` writes a documented starter file.
-- [ ] Rule metadata registry: code, title, category, default severity,
+- [x] Rule metadata registry: code, title, category, default severity,
       fixable, docs anchor, since-version. Generate the rule table and docs.
-- [ ] Allowed Latin terms and brand glossary: exact/case-insensitive entries,
+- [x] Allowed Latin terms and brand glossary: exact/case-insensitive entries,
       optional reason, optional per-culture scope.
-- [ ] Ignore rules by path, culture, key glob, and rule code, with a required
+- [x] Ignore rules by path, culture, key glob, and rule code, with a required
       reason. Report unused/stale suppressions.
-- [ ] Baseline file with stable fingerprints (`rule + culture + key +
+- [x] Baseline file with stable fingerprints (`rule + culture + key +
       occurrence`), create/update/apply modes, and stale-entry reporting. New
-      findings still fail; baseline never suppresses load or security errors
-      unless explicitly configured.
-- [ ] `--fail-on error|warning|none`, `--max-warnings`, `--quiet`,
+      findings still fail; baselines never suppress load or format errors.
+      Security-rule restrictions are part of 0.6.
+- [x] `--fail-on error|warning|none`, `--max-warnings`, `--quiet`,
       `--no-color`, `NO_COLOR`, `--debug`.
-- [ ] Document precedence: CLI > config > defaults; per-path rule overrides
-      > global rules.
+- [x] Document precedence: CLI > config > defaults. Path-scoped rule severity
+      overrides are deferred to 0.8; path-aware `ignore` entries cover adoption
+      exceptions now.
 
 **Exit criteria:** a 10,000-key legacy project can be baselined, run in CI,
 and fail only on newly introduced findings; every suppression is auditable.
@@ -916,28 +922,25 @@ Explicitly out of scope does not mean "never"; it means "not required for
 
 ## 14. Immediate next sprint (two weeks)
 
-These are the first concrete tasks, in order. They are deliberately small and
-independently reviewable.
+These are the next concrete tasks after 0.5, in order. They are deliberately
+small and independently reviewable.
 
-1. Add `MalformedFile` diagnostics for JSON, resx, and invalid UTF-8; add
-   tests proving malformed input never exits 0 silently.
-2. Replace the filename culture heuristic with BCP-47 validation; add
-   `app.json` and i18next-layout regression tests.
-3. Add file/line/column/span provenance to `Finding` and text/JSON output;
-   update the reporter tests.
-4. Make version single-source and add `--version`; remove the hardcoded test
-   expectation.
-5. Add a PR CI workflow with build, test, format check, pack, install, and
-   sample-run smoke tests.
-6. Fix escaped-brace and ICU false positives by introducing the first
-   placeholder dialect parser with tests.
-7. Add Hebrew and Persian fixtures; demonstrate the current Arabic-only gate
-   failing and then fix it with a script-aware check.
-8. Add duplicate-key detection within JSON and across merged files.
-9. Generate the README sample from a golden test and correct the current
-   inconsistency.
-10. Write the architecture note for format adapters and diagnostics before
-    implementing the next adapter.
+1. Build the Unicode-aware bidi resolver and generated character tables for
+   the documented UAX #9 subset; validate against `BidiTest.txt` and
+   `BidiCharacterTest.txt`.
+2. Add script detection for every supported RTL script and run bidi rules on
+   RTL content in nominally LTR base files.
+3. Add security rules for bidi overrides, suspicious invisible controls, and
+   Trojan Source sequences, with baseline restrictions and reasoned waivers.
+4. Split numeral systems beyond Western and Arabic-Indic, and add number
+   adjacency checks based on resolved levels.
+5. Replace regex placeholders with the dialect parser layer and remove the
+   current ICU/printf false positives.
+6. Extend fixtures and golden outputs for Hebrew, Persian, Urdu, mixed
+   numerals, controls, and already-isolated content.
+7. Add a benchmark fixture and enforce the performance budget before 1.0.
+8. Start the SARIF formatter and JSON schema versioning work in parallel with
+   the rule engine so CI integration is ready when the rules land.
 
 ---
 

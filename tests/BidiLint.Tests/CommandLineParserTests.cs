@@ -67,6 +67,15 @@ public class CommandLineParserTests
     }
 
     [Fact]
+    public void WhitespaceConfigPathIsAnError()
+    {
+        var result = CommandLineParser.Parse(["locales", "--config", " "]);
+
+        Assert.Contains(result.Errors, error => error.Contains("--config", StringComparison.Ordinal));
+        Assert.Null(result.Options);
+    }
+
+    [Fact]
     public void NoPathIsAnError()
     {
         var result = CommandLineParser.Parse([]);

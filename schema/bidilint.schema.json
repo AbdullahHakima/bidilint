@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/AbdullahHakima/bidilint/main/schema/bidilint.schema.json",
+  "title": "BidiLint configuration",
+  "description": "Configuration for the BidiLint RTL localization linter. JSON comments and trailing commas are accepted by BidiLint.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional URL of this schema for editor completion."
+    },
+    "baseCulture": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Source culture that translated resource sets are compared against. Defaults to en."
+    },
+    "include": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Glob patterns, relative to the config file, selecting files to lint. An empty list includes all supported locale files."
+    },
+    "exclude": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Glob patterns, relative to the config file, excluding files or directories."
+    },
+    "layouts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[^/\\\\]+$"
+      },
+      "description": "Additional directory names that behave like locales, i18n, or translations for layout detection."
+    },
+    "files": {
+      "type": "array",
+      "description": "Explicit mappings for locale files whose names or locations do not follow a supported convention.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "culture", "resourceSet"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "File path relative to the config file, or an absolute path."
+          },
+          "culture": {
+            "type": "string",
+            "minLength": 1,
+            "description": "BCP-47 culture of the file, such as en or ar-EG."
+          },
+          "resourceSet": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Logical set name shared by the base and translated files that should be compared."
+          }
+        }
+      }
+    },
+    "rules": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Severity and rule-specific options for configurable lint rules.",
+      "properties": {
+        "MissingKey": { "$ref": "#/$defs/ruleSetting" },
+        "ExtraKey": { "$ref": "#/$defs/ruleSetting" },
+        "EmptyValue": { "$ref": "#/$defs/ruleSetting" },
+        "PlaceholderMismatch": { "$ref": "#/$defs/ruleSetting" },
+        "UnisolatedLatin": { "$ref": "#/$defs/termRuleSetting" },
+        "MixedNumerals": { "$ref": "#/$defs/ruleSetting" },
+        "UnbalancedIsolates": { "$ref": "#/$defs/ruleSetting" }
+      }
+    },
+    "ignore": {
+      "type": "array",
+      "description": "Audited suppressions. Every entry requires a reason and at least one selector.",
+      "items": { "$ref": "#/$defs/ignore" }
+    },
+    "allowLatin": {
+      "type": "array",
+      "description": "Brand and glossary terms that do not need bidi isolation. A string is an exact, case-sensitive term.",
+      "items": {
+        "oneOf": [
+          { "type": "string", "minLength": 1 },
+          { "$ref": "#/$defs/allowLatinTerm" }
+        ]
+      }
+    },
+    "rtlCultures": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Additional BCP-47 cultures that should be treated as right-to-left."
+    },
+    "placeholderDialects": {
+      "type": "array",
+      "items": { "enum": ["auto", "braced", "dotnet", "none"] },
+      "description": "Placeholder syntaxes to understand. auto and braced use the current braced-token scanner; none disables placeholder comparison."
+    },
+    "numeralPolicy": {
+      "enum": ["mixed", "allow", "western", "arabic-indic"],
+      "description": "mixed flags strings using both numeral systems; allow disables the check; western and arabic-indic enforce one system."
+    },
+    "isolationStyle": {
+      "enum": ["isolate", "external"],
+      "description": "isolate requires bidi isolate controls in values; external declares that the UI isolates text and disables UnisolatedLatin."
+    },
+    "baseline": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Baseline file path relative to the config file, or an absolute path."
+    },
+    "failOn": {
+      "enum": ["error", "warning", "none"],
+      "description": "Findings threshold for exit code 4. Defaults to error."
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "format": {
+          "enum": ["text", "json"],
+          "description": "Report format. Defaults to text."
+        },
+        "color": {
+          "type": "boolean",
+          "description": "Use ANSI color when stdout is a terminal. NO_COLOR and --no-color still win."
+        },
+        "quiet": {
+          "type": "boolean",
+          "description": "Print only errors in text output."
+        },
+        "maxWarnings": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Fail when the warning count exceeds this value."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "ruleSetting": {
+      "oneOf": [
+        { "enum": ["off", "error", "warning", "info"] },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "severity": { "enum": ["off", "error", "warning", "info"] }
+          }
+        }
+      ]
+    },
+    "termRuleSetting": {
+      "oneOf": [
+        { "enum": ["off", "error", "warning", "info"] },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "severity": { "enum": ["off", "error", "warning", "info"] },
+            "allow": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1 },
+              "description": "Exact, case-sensitive Latin terms allowed by UnisolatedLatin."
+            }
+          }
+        }
+      ]
+    },
+    "ignore": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason"],
+      "anyOf": [
+        { "required": ["rule"] },
+        { "required": ["path"] },
+        { "required": ["culture"] },
+        { "required": ["key"] }
+      ],
+      "properties": {
+        "rule": {
+          "enum": [
+            "MissingKey",
+            "ExtraKey",
+            "EmptyValue",
+            "PlaceholderMismatch",
+            "UnisolatedLatin",
+            "MixedNumerals",
+            "UnbalancedIsolates"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Glob relative to the config file."
+        },
+        "culture": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Exact BCP-47 culture."
+        },
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Glob matched against the logical key."
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Required explanation for why the suppression exists."
+        },
+        "expires": {
+          "type": "string",
+          "format": "date",
+          "description": "Optional YYYY-MM-DD date. Expired entries stop suppressing and are reported."
+        }
+      }
+    },
+    "allowLatinTerm": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["term"],
+      "properties": {
+        "term": { "type": "string", "minLength": 1 },
+        "match": { "enum": ["exact", "case-insensitive"] },
+        "reason": { "type": "string", "minLength": 1 },
+        "cultures": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "Optional culture scope. An empty or missing list applies to every culture."
+        }
+      }
+    }
+  }
+}

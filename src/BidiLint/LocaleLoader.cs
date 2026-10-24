@@ -19,26 +19,64 @@ public static class LocaleLoader
     public static LoadResult Load(
         IEnumerable<string> paths,
         string baseCulture = "en",
-        string? workingDirectory = null)
+        string? workingDirectory = null) =>
+        Load(paths, baseCulture, workingDirectory, LintConfig.Default);
+
+    internal static LoadResult Load(
+        IEnumerable<string> paths,
+        string baseCulture,
+        string? workingDirectory,
+        LintConfig config)
     {
         var cwd = Path.GetFullPath(workingDirectory ?? Directory.GetCurrentDirectory());
         var normalizedBase = CultureTag.TryParse(baseCulture, out var baseTag)
             ? baseTag!.Name
             : baseCulture;
 
-        var discovery = FileDiscovery.Discover(paths, cwd);
+        PathFilter? filter = null;
+        if (config.ConfigDirectory is not null &&
+            (config.Include.Count > 0 || config.Exclude.Count > 0))
+        {
+            filter = new PathFilter(config.ConfigDirectory, config.Include, config.Exclude);
+        }
+
+        var configuredFiles = config.Files;
+        var discovery = FileDiscovery.Discover(
+            paths,
+            cwd,
+            filter,
+            configuredFiles.Select(file => file.FullPath));
         var result = new LoadResult { WorkingDirectory = cwd };
         result.Diagnostics.AddRange(discovery.Diagnostics);
         result.CandidateFiles.AddRange(discovery.Files.Select(file => file.FullPath));
 
         foreach (var file in discovery.Files)
         {
+            var configured = configuredFiles.FirstOrDefault(configuredFile =>
+                PathComparer.Equals(configuredFile.FullPath, file.FullPath));
+
+            if (configured is not null)
+            {
+                var configuredIdentity = new LocaleIdentity(
+                    configured.FullPath,
+                    configured.Culture,
+                    configured.ResourceSet,
+                    FormatForExtension(configured.FullPath));
+                var configuredDocument = LoadConfigured(configuredIdentity, result.Diagnostics);
+                if (configuredDocument is not null) result.Documents.Add(configuredDocument);
+                continue;
+            }
+
             ILocaleAdapter? adapter = null;
             LocaleIdentity? identity = null;
 
             foreach (var candidate in Adapters)
             {
-                identity = candidate.Identify(file.FullPath, cwd, normalizedBase);
+                identity = candidate.Identify(
+                    file.FullPath,
+                    cwd,
+                    normalizedBase,
+                    config.LayoutNames);
                 if (identity is null) continue;
                 adapter = candidate;
                 break;
@@ -74,6 +112,62 @@ public static class LocaleLoader
         return result;
     }
 
+    private static LocaleDocument? LoadConfigured(
+        LocaleIdentity identity,
+        List<Diagnostic> diagnostics)
+    {
+        try
+        {
+            return Path.GetExtension(identity.FilePath).ToLowerInvariant() switch
+            {
+                ".json" => LoadJson(identity, diagnostics),
+                ".arb" => new ArbAdapter().Load(identity, diagnostics),
+                ".resx" => new ResxAdapter().Load(identity, diagnostics),
+                ".xml" => new AndroidAdapter().Load(identity, diagnostics),
+                ".strings" => new AppleStringsAdapter().Load(identity, diagnostics),
+                ".po" or ".pot" => new PoAdapter().Load(identity, diagnostics),
+                _ => null,
+            };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            diagnostics.Add(new Diagnostic(
+                DiagnosticCodes.UnreadablePath,
+                DiagnosticSeverity.Error,
+                $"Cannot read file: {ex.Message}",
+                identity.FilePath,
+                Culture: identity.Culture));
+            return null;
+        }
+    }
+
+    private static LocaleDocument? LoadJson(
+        LocaleIdentity identity,
+        List<Diagnostic> diagnostics)
+    {
+        var source = JsonLocaleFile.Read(identity.FilePath, identity.Culture, diagnostics);
+        if (source is null) return null;
+
+        return JsonLocaleParser.Parse(
+            identity.FilePath,
+            identity.Culture,
+            identity.ResourceSet,
+            source,
+            diagnostics);
+    }
+
+    private static LocaleFormat FormatForExtension(string path) =>
+        Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".json" => LocaleFormat.Json,
+            ".arb" => LocaleFormat.Arb,
+            ".resx" => LocaleFormat.Resx,
+            ".xml" => LocaleFormat.Android,
+            ".strings" => LocaleFormat.AppleStrings,
+            ".po" or ".pot" => LocaleFormat.Po,
+            _ => LocaleFormat.Json,
+        };
+
     private static void AddUnidentified(LoadResult result, DiscoveredFile file, string baseCulture)
     {
         if (Path.GetExtension(file.FullPath).Equals(".json", StringComparison.OrdinalIgnoreCase))
@@ -92,4 +186,7 @@ public static class LocaleLoader
             "No supported locale layout matched this file. Expected JSON, .resx, Android res/values XML, Apple .strings, gettext .po/.pot, or Flutter .arb.",
             file.FullPath));
     }
+
+    private static StringComparer PathComparer =>
+        OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
 }

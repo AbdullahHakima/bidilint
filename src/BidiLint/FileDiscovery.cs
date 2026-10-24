@@ -17,7 +17,11 @@ internal static class FileDiscovery
         "artifacts", "TestResults", "vendor", "target",
     };
 
-    public static DiscoveryResult Discover(IEnumerable<string> paths, string workingDirectory)
+    public static DiscoveryResult Discover(
+        IEnumerable<string> paths,
+        string workingDirectory,
+        PathFilter? filter = null,
+        IEnumerable<string>? extraFiles = null)
     {
         var result = new DiscoveryResult();
         var seen = new HashSet<string>(PathComparer);
@@ -43,11 +47,11 @@ internal static class FileDiscovery
 
             if (File.Exists(fullPath))
             {
-                AddFile(result, seen, fullPath, isExplicit: true);
+                AddFile(result, seen, fullPath, isExplicit: true, filter: null);
             }
             else if (Directory.Exists(fullPath))
             {
-                DiscoverDirectory(result, seen, fullPath);
+                DiscoverDirectory(result, seen, fullPath, filter);
             }
             else
             {
@@ -59,12 +63,32 @@ internal static class FileDiscovery
             }
         }
 
+        foreach (var extraFile in extraFiles ?? Array.Empty<string>())
+        {
+            if (File.Exists(extraFile))
+            {
+                AddFile(result, seen, extraFile, isExplicit: true, filter: null);
+            }
+            else
+            {
+                result.Diagnostics.Add(new Diagnostic(
+                    DiagnosticCodes.PathNotFound,
+                    DiagnosticSeverity.Error,
+                    "A file configured in bidilint.json was not found.",
+                    extraFile));
+            }
+        }
+
         result.Files.Sort((left, right) =>
             string.Compare(left.FullPath, right.FullPath, StringComparison.Ordinal));
         return result;
     }
 
-    private static void DiscoverDirectory(DiscoveryResult result, HashSet<string> seen, string root)
+    private static void DiscoverDirectory(
+        DiscoveryResult result,
+        HashSet<string> seen,
+        string root,
+        PathFilter? filter)
     {
         var pending = new Stack<string>();
         pending.Push(root);
@@ -76,13 +100,14 @@ internal static class FileDiscovery
             {
                 foreach (var file in Directory.EnumerateFiles(directory))
                 {
-                    AddFile(result, seen, file, isExplicit: false);
+                    AddFile(result, seen, file, isExplicit: false, filter);
                 }
 
                 foreach (var child in Directory.EnumerateDirectories(directory))
                 {
                     var name = Path.GetFileName(child);
                     if (SkippedDirectories.Contains(name)) continue;
+                    if (filter?.IsExcludedDirectory(child) == true) continue;
                     if (IsReparsePoint(child)) continue;
                     pending.Push(child);
                 }
@@ -102,8 +127,11 @@ internal static class FileDiscovery
         DiscoveryResult result,
         HashSet<string> seen,
         string path,
-        bool isExplicit)
+        bool isExplicit,
+        PathFilter? filter)
     {
+        if (!isExplicit && filter is not null && !filter.IsIncluded(path)) return;
+
         var extension = Path.GetExtension(path);
         if (!IsSupportedExtension(extension))
         {

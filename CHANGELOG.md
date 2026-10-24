@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.5.0] - 2026-10-23
+
+- Added `bidilint.json` (JSONC) with upward discovery, explicit `--config`,
+  `--no-config`, and `--init`. Precedence is CLI > config > defaults.
+- Added the published config schema (`schema/bidilint.schema.json`) with strict
+  unknown-key validation, nested-key validation, and nearest-key suggestions.
+- Added config controls for base culture, include/exclude globs, custom layout
+  names, explicit file mappings, per-rule severity and options, allowed Latin
+  terms, RTL cultures, numeral policy, placeholder dialect, isolation style,
+  baseline path, `failOn`, and output settings.
+- Added a rule metadata catalog that is the source of truth for default
+  severity, help links, baseline eligibility, configurable rules, and
+  generated rule documentation.
+- Added reasoned ignore rules by rule, path glob, culture, and key glob, with
+  optional expiry. Unused or expired ignore entries produce `StaleSuppression`
+  warnings.
+- Added baselines with SHA-256 fingerprints over rule, culture, key, and
+  occurrence. Create/update/apply, stale-entry reporting, tamper checks, and
+  deterministic ordering are covered by tests. Update runs do not write a
+  partial baseline after an input path error or a missing base culture, and
+  diagnostics that cannot be baselined still affect the exit code.
+- Load, format, and configuration diagnostics cannot be reconfigured, ignored,
+  or baselined; they always remain visible.
+- Added `--baseline`, `--update-baseline`, `--no-baseline`, `--fail-on`,
+  `--max-warnings`, `--quiet`, `--color`, `--no-color`, and `--debug`.
+  `--strict` remains an alias for `--fail-on warning`, and `NO_COLOR` is
+  honored.
+- JSON reports now include resolved config, suppression and baseline details,
+  suppressed findings, and info counts. Text output includes suppression
+  counts and baseline-update status.
+- Rule documentation is checked against the catalog in CI, and the package
+  includes the schema and rule catalog.
+
+### Known limitations in 0.5.0
+
+- Path-scoped rule severity overrides are not implemented yet; path-aware
+  `ignore` entries cover adoption exceptions. They are planned for 0.8.
+- PO plural forms and ARB ICU placeholders still use the simple comparison
+  behavior described in 0.4 and are scheduled for 0.7.
+- Security-rule baseline restrictions and the full bidi engine are scheduled
+  for 0.6.
+
 ## [0.4.0] - 2026-10-23
 
 - Format adapters: JSON culture files and culture directories, `.resx`,

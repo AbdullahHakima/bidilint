@@ -24,7 +24,8 @@ internal static class LocalePath
         return string.Join('/', parts);
     }
 
-    public static bool IsLayoutName(string value) => LayoutNames.Contains(value);
+    public static bool IsLayoutName(string value, IReadOnlySet<string>? extra = null) =>
+        LayoutNames.Contains(value) || extra?.Contains(value) == true;
 
     public static int FindLastSegment(string[] segments, Func<string, bool> predicate)
     {

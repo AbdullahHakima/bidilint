@@ -7,7 +7,11 @@ namespace BidiLint;
 // never linted as user-visible strings.
 internal sealed class ArbAdapter : ILocaleAdapter
 {
-    public LocaleIdentity? Identify(string path, string workingDirectory, string baseCulture)
+    public LocaleIdentity? Identify(
+        string path,
+        string workingDirectory,
+        string baseCulture,
+        IReadOnlySet<string>? layoutNames = null)
     {
         if (!Path.GetExtension(path).Equals(".arb", StringComparison.OrdinalIgnoreCase))
             return null;
