@@ -8,6 +8,11 @@
   bidi classes, scripts, bracket pairs, and mirroring; scalar-aware UTF-16
   iteration and escaping helpers; and Unicode version reporting in `--version`
   and the JSON `unicodeVersion` field.
+- Added the UAX #9 bidi resolver: paragraph direction, explicit
+  embeddings/isolates, weak and neutral resolution, paired brackets, implicit
+  levels, whitespace/separator resets, and L2 visual ordering. The full Unicode
+  17.0.0 `BidiTest` and `BidiCharacterTest` suites are checked in as compressed
+  conformance fixtures and run on every test invocation.
 
 ## [0.5.0] - 2026-10-23
 

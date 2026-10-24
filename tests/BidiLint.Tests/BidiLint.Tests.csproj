@@ -17,4 +17,8 @@
     <ProjectReference Include="..\..\src\BidiLint\BidiLint.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Conformance\*.txt.gz" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
