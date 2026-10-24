@@ -45,6 +45,7 @@ public sealed class LintResult
     public List<SuppressedDiagnostic> Suppressed { get; } = new();
     public int KeyCount { get; set; }
     public long ElapsedMilliseconds { get; set; }
+    public string UnicodeVersion { get; set; } = UnicodeInfo.Version;
     public string BaseCulture { get; set; } = "en";
     public string WorkingDirectory { get; set; } = Directory.GetCurrentDirectory();
     public string? ConfigPath { get; set; }

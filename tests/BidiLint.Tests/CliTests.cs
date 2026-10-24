@@ -21,6 +21,7 @@ public class CliTests
 
         Assert.Equal(ExitCodes.Ok, code);
         Assert.Contains(ToolInfo.Version, stdout, StringComparison.Ordinal);
+        Assert.Contains($"Unicode {UnicodeInfo.Version}", stdout, StringComparison.Ordinal);
     }
 
     [Fact]

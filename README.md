@@ -302,6 +302,8 @@ Elapsed time varies between runs.
 `--format json` (or `output.format: "json"`) emits a stable machine-readable
 report. Alongside `files` and `findings`, the report includes `configPath`,
 `infos`, `suppressed`, and `suppressedFindings` for auditable suppressions.
+The root `unicodeVersion` field records the pinned Unicode data version used
+for bidi and script lookups; `--version` prints the same version.
 When a baseline is active it includes a `baseline` object with the path,
 whether it was updated, its entry count, and how many findings it suppressed.
 Findings carry `severity`, `code`, `culture`, `key`, `message`, `file`,

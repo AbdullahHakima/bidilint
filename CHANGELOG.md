@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Added a pinned Unicode 17.0.0 data foundation: a reproducible generator for
+  bidi classes, scripts, bracket pairs, and mirroring; scalar-aware UTF-16
+  iteration and escaping helpers; and Unicode version reporting in `--version`
+  and the JSON `unicodeVersion` field.
+
 ## [0.5.0] - 2026-10-23
 
 - Added `bidilint.json` (JSONC) with upward discovery, explicit `--config`,

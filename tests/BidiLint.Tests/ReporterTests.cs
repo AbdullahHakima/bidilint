@@ -49,6 +49,7 @@ public class ReporterTests
             Assert.Equal("1.0", rootElement.GetProperty("schemaVersion").GetString());
             Assert.Equal("BidiLint", rootElement.GetProperty("tool").GetString());
             Assert.Equal(ToolInfo.Version, rootElement.GetProperty("version").GetString());
+            Assert.Equal(UnicodeInfo.Version, rootElement.GetProperty("unicodeVersion").GetString());
             Assert.Equal("en", rootElement.GetProperty("baseCulture").GetString());
             Assert.Equal(1, rootElement.GetProperty("errors").GetInt32());
             Assert.Equal(0, rootElement.GetProperty("warnings").GetInt32());
