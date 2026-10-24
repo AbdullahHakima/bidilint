@@ -376,12 +376,12 @@ order or handle Hebrew is a demo, not a tool.
       embeddings/isolates, weak/neutral resolution, implicit levels, and
       reordering. Validated against the full Unicode 17.0.0 `BidiTest.txt` and
       `BidiCharacterTest.txt` suites, checked in as compressed fixtures.
-- [ ] Replace the Arabic-only gate with script detection: Arabic, Hebrew,
+- [x] Replace the Arabic-only gate with script detection: Arabic, Hebrew,
       Syriac, Thaana, N'Ko, Samaritan, Mandaic, Adlam, and configured scripts.
-- [ ] Detect RTL from culture language, script subtag, and content. `he` and
+- [x] Detect RTL from culture language, script subtag, and content. `he` and
       `yi` must actually be scanned; `az-Arab` must not be missed; `ku-Latn`
       must not be treated as RTL.
-- [ ] Run bidi rules on any value containing RTL script, including values in
+- [x] Run bidi rules on any value containing RTL script, including values in
       a nominally LTR base file.
 - [ ] Rewrite isolation rules with spans:
       - unisolated Latin runs, URLs, emails, paths, code identifiers, version

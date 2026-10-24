@@ -1,3 +1,4 @@
+using System.Text;
 using BidiLint;
 using Xunit;
 
@@ -36,6 +37,35 @@ public class BidiScannerTests
         Assert.True(scan.HasHebrew);
         Assert.True(scan.HasRtlScript);
         Assert.Contains("ASP.NET Core", scan.UnisolatedLatinRuns);
+    }
+
+    [Theory]
+    [InlineData("\u0627")] // Arabic
+    [InlineData("\u05D0")] // Hebrew
+    [InlineData("\u0710")] // Syriac
+    [InlineData("\u0780")] // Thaana
+    [InlineData("\u07CA")] // NKo
+    [InlineData("\u0800")] // Samaritan
+    [InlineData("\u0840")] // Mandaic
+    [InlineData("\U0001E900")] // Adlam
+    [InlineData("\U00010D00")] // Hanifi Rohingya
+    public void SupportedRtlScripts_AreDetected(string value)
+    {
+        Assert.True(BidiScanner.Scan(value).HasRtlScript, value);
+    }
+
+    [Fact]
+    public void CommonDirectionalMarks_AreNotTreatedAsRtlScript()
+    {
+        Assert.False(BidiScanner.Scan("\u200F").HasRtlScript);
+        Assert.False(BidiScanner.Scan("\u061C").HasRtlScript);
+    }
+
+    [Fact]
+    public void SupplementaryRtlCharacters_AreDetectedWithTheRuneOverload()
+    {
+        Assert.True(BidiScanner.IsRtlChar(new Rune(0x1E900)));
+        Assert.False(BidiScanner.IsRtlChar(new Rune('A')));
     }
 
     [Fact]

@@ -161,6 +161,56 @@ public class LinterTests
     }
 
     [Fact]
+    public void SupplementaryRtlContentInBaseCulture_IsStillChecked()
+    {
+        using var workspace = new TestWorkspace();
+        var adlam = char.ConvertFromUtf32(0x1E900);
+        workspace.Write("en.json", "{ \"s\": \"Hello " + adlam + "\" }");
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, d => d.Code == DiagnosticCodes.UnisolatedLatin);
+    }
+
+    [Fact]
+    public void YiddishBidi_IsChecked()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "n": "5" }""");
+        workspace.Write("yi.json", """{ "n": "٥ 5" }""");
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, d =>
+            d.Code == DiagnosticCodes.MixedNumerals && d.Culture == "yi");
+    }
+
+    [Fact]
+    public void AzArabBidi_IsChecked()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "n": "5" }""");
+        workspace.Write("az-Arab.json", """{ "n": "٥ 5" }""");
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, d =>
+            d.Code == DiagnosticCodes.MixedNumerals && d.Culture == "az-Arab");
+    }
+
+    [Fact]
+    public void KuLatn_IsNotTreatedAsRtl()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "n": "5" }""");
+        workspace.Write("ku-Latn.json", """{ "n": "٥ 5" }""");
+
+        var result = workspace.Lint();
+
+        Assert.DoesNotContain(result.Diagnostics, d => d.Code == DiagnosticCodes.MixedNumerals);
+    }
+
+    [Fact]
     public void LatinProblems_InEnglish_AreNotBidiFindings()
     {
         using var workspace = new TestWorkspace();

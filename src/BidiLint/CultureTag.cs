@@ -98,8 +98,11 @@ public sealed record CultureTag(
         }
 
         var name = string.Join('-', nameParts);
-        var rtl = RtlLanguages.Contains(language) ||
-                  (script is not null && RtlScripts.Contains(script));
+        // An explicit script subtag wins: ar-Latn and ku-Latn are written
+        // left-to-right even though their languages have RTL defaults.
+        var rtl = script is not null
+            ? RtlScripts.Contains(script)
+            : RtlLanguages.Contains(language);
         tag = new CultureTag(name, language, script, region, rtl);
         return true;
     }

@@ -13,6 +13,12 @@
   levels, whitespace/separator resets, and L2 visual ordering. The full Unicode
   17.0.0 `BidiTest` and `BidiCharacterTest` suites are checked in as compressed
   conformance fixtures and run on every test invocation.
+- Replaced character-range RTL detection with Unicode 17 script, bidi-class,
+  and letter-category detection. Arabic, Hebrew, Syriac, Thaana, N'Ko,
+  Samaritan, Mandaic, Adlam, Hanifi Rohingya, and other RTL scripts are covered,
+  including supplementary-plane characters. Explicit script subtags now
+  override language defaults, so `az-Arab` is RTL while `ar-Latn` and
+  `ku-Latn` are not.
 
 ## [0.5.0] - 2026-10-23
 
