@@ -38,16 +38,30 @@
   policy, ignores digits in markup and placeholders, and points at the visible
   digit span.
 - Added `PresentationForm`, `Normalization`, and `Tatweel` as configurable
-  warning rules. Presentation Forms-A/B (`FB50–FDFF`, `FE70–FEFF`), non-NFC and
+  warning rules. Presentation Forms-A/B (`FB50–FDFF`, `FE70–FEFE`), non-NFC and
   mixed composed/decomposed text, and U+0640 tatweel are checked on visible
   values regardless of direction; markup and placeholders are masked.
 - Added run-level bidi explanations to text and JSON reports: the escaped
   logical string, paragraph level, resolved level runs, and the visual token
   order for `NumberAdjacency`. Findings now carry an optional `bidi` object in
   JSON, and `Diagnostic.Bidi` exposes the same evidence to API consumers.
-- Added tests for numeral systems, all policy values, placeholder/markup
-  masking, exact source spans, normalization warnings, tatweel, visual-order
-  explanations, reporter output, and schema/config synchronization.
+- Added `BidiOverride` and `InvisibleControl` as error-level security rules.
+  `BidiOverride` reports every visible LRO/RLO, including balanced Trojan Source
+  sequences. `InvisibleControl` reports mid-string BOMs, disallowed C0/C1
+  controls, ZWJ/ZWNJ without a legitimate joining-script or emoji context, and
+  LRM/RLM/ALM marks that do not change the paragraph level or any visible
+  resolved level. Joiners remain accepted in Arabic/Persian/Urdu and other
+  joining-script text, after Indic viramas, and in emoji ZWJ sequences.
+- Added security-rule metadata and reasoned waivers. Security rules cannot be
+  set under `rules`; a targeted `ignore` entry that names the rule and includes
+  a reason can suppress a specific finding. Path-, culture-, and key-only
+  ignores do not match security findings.
+- Excluded security rules from baseline creation and rejected baseline entries
+  that name them. `--update-baseline` leaves security findings visible and still
+  affects the exit code.
+- Added tests for security positives, benign contexts, reasoned waivers,
+  config rejection, baseline exclusion/rejection, markup masking, and exact
+  spans. The full suite now has 362 tests.
 
 ### Changed
 
@@ -58,6 +72,15 @@
   whole value, and its message reports every recognized numeral system.
 - `Tatweel` defaults to `warning` (configurable to `info` or `off`) rather than
   the `info` default previously sketched in the roadmap.
+- Security rules are non-suppressible through `rules` and baselines; only a
+  targeted, reasoned `ignore` entry can waive one.
+- `PresentationForm` no longer treats U+FEFF as an Arabic presentation form;
+  U+FEFF is handled only as a BOM by `InvisibleControl`.
+
+### Fixed
+
+- Corrected the Presentation Forms-B range to `FE70–FEFE`, so a visible BOM is
+  reported once by `InvisibleControl` instead of also as a presentation form.
 
 ## [0.5.0] - 2026-10-23
 

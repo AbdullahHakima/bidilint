@@ -6,10 +6,12 @@ This file is generated from `RuleCatalog` and checked by a test.
 | --- | --- | --- | --- | --- | --- |
 | [`BaseCultureMissing`](#baseculturemissing) | error | structure | no | 0.3.0 | no |
 | [`BidiControl`](#bidicontrol) | error | bidi | no | 0.6.0 | yes |
+| [`BidiOverride`](#bidioverride) | error | security | no | 0.6.0 | no |
 | [`CultureNotFound`](#culturenotfound) | error | discovery | no | 0.3.0 | no |
 | [`DuplicateKey`](#duplicatekey) | error | format | no | 0.3.0 | no |
 | [`EmptyValue`](#emptyvalue) | warning | structure | no | 0.1.0 | yes |
 | [`ExtraKey`](#extrakey) | warning | structure | no | 0.1.0 | yes |
+| [`InvisibleControl`](#invisiblecontrol) | error | security | no | 0.6.0 | no |
 | [`IsolateDepth`](#isolatedepth) | warning | bidi | no | 0.6.0 | yes |
 | [`KeyCollision`](#keycollision) | error | format | no | 0.3.0 | no |
 | [`MalformedFile`](#malformedfile) | error | format | no | 0.3.0 | no |
@@ -46,6 +48,14 @@ Legacy bidi embeddings or overrides are unbalanced, ineffective across an isolat
 
 Suppress with an `ignore` entry, or change the severity under `rules.BidiControl`.
 
+## BidiOverride
+
+**Bidi override** · error · security · since 0.6.0
+
+A left-to-right or right-to-left override (LRO/RLO) is visible in the value. Override sequences can reorder or hide text and are the basis of Trojan Source attacks; use isolates instead.
+
+This is a security rule. Waive a specific finding only with an `ignore` entry that names this rule and includes a reason. It cannot be disabled under `rules` or suppressed by a baseline.
+
 ## CultureNotFound
 
 **Culture not found** · error · discovery · since 0.3.0
@@ -77,6 +87,14 @@ Suppress with an `ignore` entry, or change the severity under `rules.EmptyValue`
 A key exists only in the translated resource set. It may be dead text left behind by a redesign.
 
 Suppress with an `ignore` entry, or change the severity under `rules.ExtraKey`.
+
+## InvisibleControl
+
+**Invisible control** · error · security · since 0.6.0
+
+Visible text contains a BOM, a disallowed C0/C1 control, a zero-width joiner or non-joiner without a legitimate shaping or emoji context, or a directional mark that does not affect resolved order.
+
+This is a security rule. Waive a specific finding only with an `ignore` entry that names this rule and includes a reason. It cannot be disabled under `rules` or suppressed by a baseline.
 
 ## IsolateDepth
 
@@ -170,7 +188,7 @@ Suppress with an `ignore` entry, or change the severity under `rules.Placeholder
 
 **Arabic presentation form** · warning · unicode · since 0.6.0
 
-Arabic Presentation Forms-A or -B (U+FB50-U+FDFF and U+FE70-U+FEFF) are present. These compatibility characters should be stored as standard Arabic letters so normalization, search, and shaping remain stable.
+Arabic Presentation Forms-A or -B (U+FB50-U+FDFF and U+FE70-U+FEFE) are present. These compatibility characters should be stored as standard Arabic letters so normalization, search, and shaping remain stable.
 
 Suppress with an `ignore` entry, or change the severity under `rules.PresentationForm`.
 

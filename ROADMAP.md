@@ -79,10 +79,10 @@ place. The remaining gaps below drive the next phases.
 | Provenance | Per-document entries with source spans; format-specific parser positions; comparison findings link to the base; bidi findings map decoded values back to source ranges where the format allows it | Snippets, SARIF, and edit ranges for fixes |
 | Text output | Relative `path:line:column`, code, key, message, related base location, quiet/color modes, suppression counts | Snippets, SARIF/GitHub annotations, output files, and MSBuild/JUnit formats |
 | Placeholders | Braced-token comparison against the base; configurable dialect gate | Escaped braces, ICU plural/select, printf, i18next, Angular, and format-aware validation (0.7) |
-| Bidi checks | Script-aware RTL detection; UAX #9 resolved levels; span-aware isolation, control, depth, number-adjacency, mixed-numeral, presentation-form, NFC, and tatweel rules; escaped logical/run-level explanations in text and JSON; built-in mitigation recognition | Trojan Source and invisible-control security rules (0.6); SARIF (0.8) |
+| Bidi checks | Script-aware RTL detection; UAX #9 resolved levels; span-aware isolation, control, depth, number-adjacency, mixed-numeral, presentation-form, NFC, and tatweel rules; escaped logical/run-level explanations in text and JSON; built-in mitigation recognition; Trojan Source and invisible-control security rules with reasoned waivers | SARIF (0.8) |
 | Culture model | BCP-47 validation, explicit layouts, neutral-resource mapping to `--base`, config overrides and custom layout names | Base auto-detection when neutral resources are ambiguous, and custom tags (1.1) |
 | Config | `bidilint.json`/JSONC, published schema, discovery, `--config`, `--no-config`, `--init`, include/exclude, layouts/files, rules, terms, RTL cultures, isolation wrappers, output policy | Path-scoped rule severity overrides (0.8), YAML config |
-| Baseline | SHA-256 baseline create/update/apply, stale-entry reporting, tamper validation | Security-rule restrictions and baseline merge workflows (0.6) |
+| Baseline | SHA-256 baseline create/update/apply, stale-entry reporting, tamper validation, security-rule exclusion and rejection | Baseline merge workflows |
 | Integration | Text and JSON schema 1.0 with file/range/format/resourceSet/related fields; config and suppressed findings in JSON | SARIF, GitHub annotations, output file, and editor fixes |
 | CI | PR matrix (Linux/macOS/Windows), build/test/format/pack/install smoke on both samples, Dependabot | Coverage gate, CodeQL, and release provenance/attestations |
 | Packaging | Version single-source, symbols/snupkg, deterministic build, repository metadata, schema and rule docs in the package | SourceLink verification, signed packages, and package-validation baseline |
@@ -352,7 +352,6 @@ without a cleanup project.
 - [x] Baseline file with stable fingerprints (`rule + culture + key +
       occurrence`), create/update/apply modes, and stale-entry reporting. New
       findings still fail; baselines never suppress load or format errors.
-      Security-rule restrictions are part of 0.6.
 - [x] `--fail-on error|warning|none`, `--max-warnings`, `--quiet`,
       `--no-color`, `NO_COLOR`, `--debug`.
 - [x] Document precedence: CLI > config > defaults. Path-scoped rule severity
@@ -390,19 +389,22 @@ order or handle Hebrew is a demo, not a tool.
       - legacy `LRE/RLE/LRO/RLO/PDF` balance and isolate-carried nesting;
       - isolate depth and empty isolates;
       - number adjacency only where resolved levels show a real reorder risk.
-      Directional-mark pairing remains in the security slice (#15).
 - [x] Recognize mitigations already present in the value: LRI/FSI/RLI..PDI,
       `<bdi>`, `dir="ltr"`, `<code>`, and configured wrappers. Do not flag
       content that is already isolated correctly.
 - [x] Separate numeral systems: Western, Arabic-Indic (`0660–0669`), and
       Extended Arabic-Indic (`06F0–06F9`); report which systems were found and
       apply the configured numeral policy.
-- [ ] Add security rules: bidi override characters (Trojan Source), mid-string
-      BOM, suspicious invisible characters, and unpaired directional marks.
-      Do not blanket-flag legitimate ZWJ/ZWNJ in Arabic/Persian/Urdu; require
-      context and make the rule configurable.
-- [x] Add normalization checks: presentation forms (`FB50–FEFF`), non-NFC
-      sequences, and tatweel policy (warning, not error).
+- [x] Add security rules: `BidiOverride` for every visible LRO/RLO (Trojan
+      Source), and `InvisibleControl` for mid-string BOM, disallowed C0/C1
+      controls, contextless ZWJ/ZWNJ, and ineffective LRM/RLM/ALM. Joiners are
+      accepted next to Arabic/Indic joining-script letters, Indic viramas, and
+      emoji ZWJ sequences. Security rules are not configurable under `rules`
+      and cannot be baselined; waive a specific finding only with a targeted,
+      reasoned `ignore` entry that names the rule.
+- [x] Add normalization checks: presentation forms (`FB50–FDFF`, `FE70–FEFE`),
+      non-NFC sequences, and tatweel policy (warning, not error). U+FEFF is
+      handled as a BOM by the security rules, not as a presentation form.
 - [x] Add a visual-order explanation: for each flagged run, show the resolved
       level change and an escaped logical string, not just "may render wrong".
 - [x] Add Hebrew, Persian, Urdu, mixed-numeral, control-character, and
@@ -615,26 +617,27 @@ until 1.0.
 | `MixedNumerals` | warning | shipped, extended 0.6 | More than one numeral system in one string |
 | `UnbalancedIsolates` | error | shipped, extended 0.6 | Unclosed/misordered isolates, stray PDI |
 | `BidiControl` | error | shipped 0.6 | Unbalanced/ineffective legacy embeddings/overrides, overflow |
-| `BidiOverride` | error | 0.6 | Trojan Source-style override sequences |
+| `BidiOverride` | error | shipped 0.6 | Trojan Source-style override sequences |
 | `IsolateDepth` | warning | shipped 0.6 | Excessive or empty isolate nesting |
 | `NumberAdjacency` | warning | shipped 0.6 | Adjacent numeric tokens resolve in a different visual order |
 | `PresentationForm` | warning | shipped 0.6 | Legacy Arabic presentation forms |
 | `Normalization` | warning | shipped 0.6 | Non-NFC values, mixed normalization |
-| `InvisibleCharacter` | warning | 0.6 | Mid-string BOM, suspicious invisibles |
+| `InvisibleControl` | error | shipped 0.6 | BOM, disallowed controls, contextless joiners, ineffective marks |
 | `Tatweel` | warning | shipped 0.6 | Optional kashida policy |
 
 ### Security
 
 | Rule | Default | Milestone | Catches |
 | --- | --- | --- | --- |
-| `BidiOverride` | error | 0.6 | RLO/LRO sequences that can hide content |
-| `InvisibleControl` | error | 0.6 | Controls with no legitimate localization use |
+| `BidiOverride` | error | shipped 0.6 | RLO/LRO sequences that can hide content |
+| `InvisibleControl` | error | shipped 0.6 | Controls with no legitimate localization use |
 | `XxeRisk` | error | 1.0 | XML input that would require external entities |
 
 `BidiOverride` and `InvisibleControl` appear in both the bidi and security
 groups because they are rendering bugs and security gates at the same time.
-Security findings should not be suppressible by the default baseline; they may
-be waived only by an explicit, reasoned config entry.
+Security findings are excluded from baselines and rejected when a baseline
+names them; they may be waived only by an explicit, reasoned `ignore` entry
+that names the rule.
 
 ---
 
@@ -728,7 +731,7 @@ unknown fields.
   "rules": {
     "UnisolatedLatin": { "severity": "warning", "allow": ["BidiLint", ".NET"] },
     "Tatweel": "off",
-    "BidiOverride": "error"
+    "BidiControl": "warning"
   },
   "ignore": [
     { "rule": "ExtraKey", "key": "legacy.*", "reason": "Remove after 2027-01", "expires": "2027-01-31" }
@@ -847,7 +850,7 @@ split earlier for its own sake.
 | Config complexity harms adoption | Users cannot start | Zero-config defaults; `--init`; JSON Schema and editor completion; documented precedence |
 | Runtime/package incompatibility | Tool will not start | Multi-target or verified roll-forward; install smoke test on clean images |
 | Maintenance burnout | Project stalls after 1.0 | Small rule surface, generated docs, adapter isolation, CI automation, clear non-goals |
-| Security findings are suppressed by baseline | Hidden trojan-source debt | Security rules excluded from baseline by default; explicit reasoned waiver only |
+| Security findings are suppressed by baseline | Hidden trojan-source debt | Security rules always excluded from baseline; explicit reasoned waiver only |
 
 ---
 

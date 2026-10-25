@@ -244,6 +244,130 @@ public class AdoptionTests
         Assert.Equal(0, document.RootElement.GetProperty("suppressed").GetInt32());
     }
 
+    [Theory]
+    [InlineData("BidiOverride", "A\\u202Eb\\u202C")]
+    [InlineData("InvisibleControl", "A\\uFEFFB")]
+    public void SecurityRule_CanBeWaivedByTargetedReasonedIgnore(string rule, string value)
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("locales/en.json", """{ "a": "A" }""");
+        workspace.Write("locales/ar.json", $$"""{ "a": "{{value}}" }""");
+        workspace.Write("bidilint.json", $$"""
+            {
+              "ignore": [
+                { "rule": "{{rule}}", "reason": "Reviewed legacy content; tracked in SEC-123." }
+              ]
+            }
+            """);
+
+        var (code, stdout, stderr) = workspace.RunCli("locales", "--format", "json");
+
+        Assert.Equal(ExitCodes.Ok, code);
+        Assert.Equal("", stderr);
+        using var document = JsonDocument.Parse(stdout);
+        Assert.Equal(0, document.RootElement.GetProperty("findings").GetArrayLength());
+        Assert.Equal(1, document.RootElement.GetProperty("suppressed").GetInt32());
+    }
+
+    [Fact]
+    public void BroadIgnore_DoesNotHideSecurityFindings()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("locales/en.json", """{ "a": "A" }""");
+        workspace.Write("locales/ar.json", """{ "a": "A\u202Eb\u202C" }""");
+        workspace.Write("bidilint.json", """
+            {
+              "ignore": [
+                { "path": "locales/ar.json", "reason": "Attempt to hide a security finding." }
+              ]
+            }
+            """);
+
+        var (code, stdout, stderr) = workspace.RunCli("locales", "--format", "json");
+
+        Assert.Equal(ExitCodes.Findings, code);
+        Assert.Equal("", stderr);
+        using var document = JsonDocument.Parse(stdout);
+        Assert.Contains(
+            document.RootElement.GetProperty("findings").EnumerateArray(),
+            finding => finding.GetProperty("code").GetString() == DiagnosticCodes.BidiOverride);
+        Assert.Equal(0, document.RootElement.GetProperty("suppressed").GetInt32());
+    }
+
+    [Theory]
+    [InlineData("BidiOverride", "A\\u202Eb\\u202C")]
+    [InlineData("InvisibleControl", "A\\uFEFFB")]
+    public void BaselineUpdate_ExcludesSecurityFindings(string rule, string value)
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("locales/en.json", """{ "a": "A" }""");
+        workspace.Write("locales/ar.json", $$"""{ "a": "{{value}}" }""");
+        var baselinePath = Path.Combine(workspace.Root, "baseline.json");
+
+        var (code, stdout, stderr) = workspace.RunCli(
+            "locales",
+            "--format", "json",
+            "--baseline", baselinePath,
+            "--update-baseline");
+
+        Assert.Equal(ExitCodes.Findings, code);
+        Assert.Equal("", stderr);
+        using (var document = JsonDocument.Parse(stdout))
+        {
+            Assert.Contains(
+                document.RootElement.GetProperty("findings").EnumerateArray(),
+                finding => finding.GetProperty("code").GetString() == rule);
+            Assert.Equal(
+                0,
+                document.RootElement.GetProperty("baseline").GetProperty("entries").GetInt32());
+        }
+
+        using (var baseline = JsonDocument.Parse(File.ReadAllText(baselinePath)))
+        {
+            Assert.Equal(0, baseline.RootElement.GetProperty("findings").GetArrayLength());
+        }
+
+        var apply = workspace.RunCli(
+            "locales",
+            "--format", "json",
+            "--baseline", baselinePath);
+        Assert.Equal(ExitCodes.Findings, apply.Code);
+        using var applied = JsonDocument.Parse(apply.Stdout);
+        Assert.Contains(
+            applied.RootElement.GetProperty("findings").EnumerateArray(),
+            finding => finding.GetProperty("code").GetString() == rule);
+    }
+
+    [Theory]
+    [InlineData("BidiOverride")]
+    [InlineData("InvisibleControl")]
+    public void BaselineFile_RejectsSecurityEntries(string rule)
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("locales/en.json", """{ "a": "A" }""");
+        workspace.Write("locales/ar.json", """{ "a": "أ" }""");
+        var fingerprint = BaselineFingerprint.Compute(rule, "ar", "a", 1);
+        var baselinePath = workspace.Write("baseline.json", $$"""
+            {
+              "version": 1,
+              "findings": [
+                {
+                  "fingerprint": "{{fingerprint}}",
+                  "rule": "{{rule}}",
+                  "culture": "ar",
+                  "key": "a",
+                  "occurrence": 1
+                }
+              ]
+            }
+            """);
+
+        var (code, _, stderr) = workspace.RunCli("locales", "--baseline", baselinePath);
+
+        Assert.Equal(ExitCodes.Usage, code);
+        Assert.Contains("not eligible for baselining", stderr, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void BaselineCreateApplyAndStaleEntryReporting()
     {

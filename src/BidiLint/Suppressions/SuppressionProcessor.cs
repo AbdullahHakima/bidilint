@@ -274,8 +274,21 @@ internal static class SuppressionProcessor
         public bool Matches(Diagnostic diagnostic)
         {
             if (IsExpired) return false;
-            if (!RuleCatalog.TryGet(diagnostic.Code, out var metadata) || !metadata.Configurable)
+            if (!RuleCatalog.TryGet(diagnostic.Code, out var metadata) ||
+                (!metadata.Configurable && !metadata.Waivable))
+            {
                 return false;
+            }
+
+            // A security rule is never hidden by a path/key-only ignore. The
+            // entry must name the rule and carry a reason (validated by the
+            // config loader).
+            if (metadata.Security &&
+                (Rule.Rule is null || string.IsNullOrWhiteSpace(Rule.Reason)))
+            {
+                return false;
+            }
+
             if (Rule.Rule is not null &&
                 !string.Equals(Rule.Rule, diagnostic.Code, StringComparison.Ordinal))
             {

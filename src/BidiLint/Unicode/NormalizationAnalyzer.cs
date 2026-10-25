@@ -229,7 +229,7 @@ internal static class NormalizationAnalyzer
     }
 
     private static bool IsPresentationForm(Rune rune) =>
-        rune.Value is >= 0xFB50 and <= 0xFDFF or >= 0xFE70 and <= 0xFEFF;
+        rune.Value is >= 0xFB50 and <= 0xFDFF or >= 0xFE70 and <= 0xFEFE;
 
     private static bool TryDecode(
         string value,
