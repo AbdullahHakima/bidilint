@@ -71,6 +71,9 @@
         "PlaceholderMismatch": { "$ref": "#/$defs/ruleSetting" },
         "UnisolatedLatin": { "$ref": "#/$defs/termRuleSetting" },
         "MixedNumerals": { "$ref": "#/$defs/ruleSetting" },
+        "PresentationForm": { "$ref": "#/$defs/ruleSetting" },
+        "Normalization": { "$ref": "#/$defs/ruleSetting" },
+        "Tatweel": { "$ref": "#/$defs/ruleSetting" },
         "UnbalancedIsolates": { "$ref": "#/$defs/ruleSetting" },
         "BidiControl": { "$ref": "#/$defs/ruleSetting" },
         "IsolateDepth": { "$ref": "#/$defs/ruleSetting" },
@@ -112,8 +115,8 @@
       "description": "Placeholder syntaxes to understand. auto and braced use the current braced-token scanner; none disables placeholder comparison."
     },
     "numeralPolicy": {
-      "enum": ["mixed", "allow", "western", "arabic-indic"],
-      "description": "mixed flags strings using both numeral systems; allow disables the check; western and arabic-indic enforce one system."
+      "enum": ["mixed", "allow", "western", "arabic-indic", "extended-arabic-indic"],
+      "description": "mixed flags strings using more than one recognized numeral system; allow disables the check; western, arabic-indic, and extended-arabic-indic enforce one system."
     },
     "isolationStyle": {
       "enum": ["isolate", "external"],
@@ -201,6 +204,9 @@
             "PlaceholderMismatch",
             "UnisolatedLatin",
             "MixedNumerals",
+            "PresentationForm",
+            "Normalization",
+            "Tatweel",
             "UnbalancedIsolates",
             "BidiControl",
             "IsolateDepth",

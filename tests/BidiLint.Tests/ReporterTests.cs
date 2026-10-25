@@ -77,6 +77,56 @@ public class ReporterTests
     }
 
     [Fact]
+    public void BidiExplanation_IsRenderedInTextAndJson()
+    {
+        var root = CreateRoot();
+        try
+        {
+            var source = SourceText.FromText("{\"a\":\"x\"}");
+            var ar = Document(root, "ar.json", "ar", source);
+            var result = new LintResult { BaseCulture = "en", WorkingDirectory = root };
+            result.Documents.Add(ar);
+            result.Diagnostics.Add(new Diagnostic(
+                DiagnosticCodes.UnisolatedLatin,
+                DiagnosticSeverity.Warning,
+                "Latin run is not isolated.",
+                ar.FilePath,
+                new SourceSpan(source.PositionAt(1, 7), source.PositionAt(1, 19)),
+                "ar",
+                "a",
+                Bidi: new BidiExplanation(
+                    "ASP.NET Core",
+                    1,
+                    new[] { new BidiLevelRun(0, 12, 2) },
+                    "ASP.NET Core")));
+
+            using var writer = new StringWriter();
+            Reporter.Print(result, writer);
+            var text = writer.ToString();
+
+            Assert.Contains("logical: \"ASP.NET Core\"", text, StringComparison.Ordinal);
+            Assert.Contains("paragraph level 1 (RTL)", text, StringComparison.Ordinal);
+            Assert.Contains("run level 2 (LTR) for 12 code units", text, StringComparison.Ordinal);
+            Assert.Contains("visual: \"ASP.NET Core\"", text, StringComparison.Ordinal);
+
+            using var document = JsonDocument.Parse(Reporter.RenderJson(result));
+            var finding = document.RootElement.GetProperty("findings")[0];
+            var bidi = finding.GetProperty("bidi");
+            Assert.Equal("ASP.NET Core", bidi.GetProperty("logical").GetString());
+            Assert.Equal(1, bidi.GetProperty("paragraphLevel").GetInt32());
+            var level = bidi.GetProperty("levels")[0];
+            Assert.Equal(0, level.GetProperty("start").GetInt32());
+            Assert.Equal(12, level.GetProperty("length").GetInt32());
+            Assert.Equal(2, level.GetProperty("level").GetInt32());
+            Assert.Equal("ASP.NET Core", bidi.GetProperty("visual").GetString());
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void TextReportIncludesLocationAndKey()
     {
         var root = CreateRoot();

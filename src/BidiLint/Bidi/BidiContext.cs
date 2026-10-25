@@ -115,4 +115,43 @@ internal sealed class BidiContext
 
         return -1;
     }
+
+    // Builds reporter evidence for a UTF-16 slice. Offsets in the returned
+    // level runs are relative to the slice, while levels come from the
+    // resolved paragraph that contains it.
+    public BidiExplanation Explain(
+        string value,
+        int start,
+        int length,
+        string? visual = null)
+    {
+        var safeStart = Math.Clamp(start, 0, value.Length);
+        var safeEnd = Math.Clamp(safeStart + length, safeStart, value.Length);
+        var logical = value[safeStart..safeEnd];
+        var runs = new List<BidiLevelRun>();
+        var relativeOffset = 0;
+
+        foreach (var scalar in UnicodeScalars.Enumerate(logical))
+        {
+            var level = LevelAtChar(safeStart + scalar.Utf16Offset);
+            if (runs.Count > 0 &&
+                runs[^1].Level == level &&
+                runs[^1].Start + runs[^1].Length == relativeOffset)
+            {
+                runs[^1] = runs[^1] with { Length = runs[^1].Length + scalar.Utf16Length };
+            }
+            else
+            {
+                runs.Add(new BidiLevelRun(relativeOffset, scalar.Utf16Length, level));
+            }
+
+            relativeOffset += scalar.Utf16Length;
+        }
+
+        return new BidiExplanation(
+            DiagnosticText.Escape(logical),
+            ParagraphLevel,
+            runs,
+            visual);
+    }
 }

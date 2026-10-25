@@ -161,6 +161,9 @@ Configurable rules:
 | `PlaceholderMismatch` | error |
 | `UnisolatedLatin` | warning |
 | `MixedNumerals` | warning |
+| `PresentationForm` | warning |
+| `Normalization` | warning |
+| `Tatweel` | warning |
 | `UnbalancedIsolates` | error |
 | `BidiControl` | error |
 | `IsolateDepth` | warning |
@@ -179,9 +182,14 @@ isolate their content in the rendered UI. Built-in `<bdi>`, `<code>`,
 `dir="ltr"`, and LRI/FSI/RLI controls are always recognized.
 `placeholderDialects` currently accepts `auto`, `braced`, `dotnet`, and `none`;
 ICU, printf, and i18next dialect parsing is scheduled for 0.7.
-`numeralPolicy` accepts `mixed` (default), `allow`, `western`, or
-`arabic-indic`. `isolationStyle: "external"` is an explicit declaration that
-the UI wraps text at render time; it disables `UnisolatedLatin`.
+`numeralPolicy` accepts `mixed` (default), `allow`, `western`,
+`arabic-indic`, or `extended-arabic-indic`. `western` uses `0-9`,
+`arabic-indic` uses `٠-٩` (U+0660–U+0669), and `extended-arabic-indic` uses
+`۰-۹` (U+06F0–U+06F9). `mixed` flags strings that use more than one recognized
+system; the other values require that exact set. Markup and placeholders are
+ignored when counting visible digits. `isolationStyle: "external"` is an
+explicit declaration that the UI wraps text at render time; it disables
+`UnisolatedLatin`.
 
 The complete rule catalog, including default severity and baseline
 eligibility, is generated in [docs/rules/README.md](docs/rules/README.md).
@@ -271,19 +279,32 @@ Persian, Urdu, ...):
 | Check | Severity | Meaning |
 | --- | --- | --- |
 | `UnisolatedLatin` | warning | A Latin run (brand, URL, email, path, code term, version, or file name) is not isolated, uses the wrong isolate direction, or crosses an isolate boundary |
-| `MixedNumerals` | warning | One string mixes Western digits (0-9) and Arabic-Indic digits (٠-٩), or violates the configured numeral policy |
+| `MixedNumerals` | warning | One string uses more than one of Western (0-9), Arabic-Indic (٠-٩), or Extended Arabic-Indic (۰-۹) digits, or violates the configured numeral policy |
 | `UnbalancedIsolates` | error | An isolate opener (FSI/LRI/RLI) without its PDI, or a stray PDI; the finding points at the unmatched control |
 | `BidiControl` | error | A legacy LRE/RLE/LRO/RLO/PDF control is unbalanced, ignored inside an isolate, or exceeds the Unicode nesting limit |
 | `IsolateDepth` | warning | Isolates are nested deeper than the recommended 16 levels, or an isolate contains no visible content |
 | `NumberAdjacency` | warning | Numbers separated only by neutral characters resolve in a different visual order, so they can appear swapped |
+
+Inside any visible value, regardless of direction:
+
+| Check | Severity | Meaning |
+| --- | --- | --- |
+| `PresentationForm` | warning | Arabic Presentation Forms-A/B compatibility characters are present; store the equivalent standard Arabic letters |
+| `Normalization` | warning | A visible text element is not Unicode NFC, or the value mixes composed and decomposed forms |
+| `Tatweel` | warning | Arabic tatweel (U+0640) is present; keep it only for intentional kashida |
 
 BidiLint uses the checked-in UAX #9 resolver to decide whether a run is
 actually at risk. It recognizes LRI/FSI/RLI..PDI, `<bdi>`, `<code>`,
 `dir="ltr"`, and configured `isolationWrappers` as mitigation. An RLI, an
 explicit `dir="rtl"` wrapper, or an auto-direction wrapper whose first strong
 character is RTL is reported as the wrong isolate direction. Markup tags,
-entities, and placeholders are masked before Latin-run and number analysis, so
-their identifiers do not become findings.
+entities, and placeholders are masked before Latin-run, number, numeral, and
+normalization analysis, so their identifiers do not become findings.
+
+For `UnisolatedLatin` and `NumberAdjacency`, the report also explains the
+resolved order. Text output includes the escaped logical run, the paragraph
+level, and the resolved level runs. JSON adds a `bidi` object with the same
+evidence; `NumberAdjacency` also records the visual token order.
 
 ## Sample output
 
@@ -301,8 +322,8 @@ samples/storefront/ar.json:1:114  warning  ExtraKey  offer.old
 samples/storefront/ar.json:1:152  error    PlaceholderMismatch  products.count
   Placeholders differ from en: expected [{0}], found [].
   Base value. samples/storefront/en.json:1:184
-samples/storefront/ar.json:1:152  warning  MixedNumerals  products.count
-  Mixes Western digits (0-9) and Arabic-Indic digits (٠-٩) in one string; pick one numeral system per string.
+samples/storefront/ar.json:1:166  warning  MixedNumerals  products.count
+  Found Western digits (0-9) and Arabic-Indic digits (٠-٩) in one string; pick one numeral system per string.
 samples/storefront/ar.json:1:190  error    PlaceholderMismatch  products.discount
   Placeholders differ from en: expected [{0}, {1}], found [{0}].
   Base value. samples/storefront/en.json:1:210
@@ -310,8 +331,10 @@ samples/storefront/ar.json:1:240  error    UnbalancedIsolates  promo.broken
   Unclosed LRI (U+2066); it runs to the end of the value. Add a matching PDI (U+2069) after the isolated text.
 samples/storefront/ar.json:1:345  warning  UnisolatedLatin  skills.stack
   Latin run "ASP.NET Core" is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir="ltr".
+  logical: "ASP.NET Core"; paragraph level 1 (RTL), run level 2 (LTR) for 12 code units
 samples/storefront/ar.json:1:360  warning  UnisolatedLatin  skills.stack
   Latin run "C#" is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir="ltr".
+  logical: "C#"; paragraph level 1 (RTL), run levels 2 (LTR), 1 (RTL)
 
 BidiLint 0.5.0: 2 file(s), base en, 18 entries — 4 error(s), 5 warning(s) in 72 ms.
 ```
@@ -328,7 +351,11 @@ for bidi and script lookups; `--version` prints the same version.
 When a baseline is active it includes a `baseline` object with the path,
 whether it was updated, its entry count, and how many findings it suppressed.
 Findings carry `severity`, `code`, `culture`, `key`, `message`, `file`,
-`range`, `related`, and `helpUri`.
+`range`, `related`, and `helpUri`. A bidi finding also carries `bidi` with
+`logical` (the escaped run), `paragraphLevel`, and `levels` (`start`, `length`,
+`level`); `visual` is present when the rule can state the reordered token
+order. Level offsets index the decoded logical run; `logical` escapes invisible
+characters for display. `range` remains the source span.
 
 ## How it works / limitations
 
@@ -357,8 +384,15 @@ Findings carry `severity`, `code`, `culture`, `key`, `message`, `file`,
   the rule severity in that case.
 - With the default `numeralPolicy: "mixed"`, Western digits inside Arabic text
   are common (Egypt writes prices that way), so digits alone are not flagged.
-  Only *mixing* two numeral systems in one string is. Use `western` or
-  `arabic-indic` to enforce one system deliberately.
+  Only *mixing* recognized systems in one string is flagged. Western, Arabic-Indic, and
+  Extended Arabic-Indic are separate systems; the configured policy selects
+  which one is expected. Other scripts' digits are outside the current numeral
+  policy and are not counted as a recognized system.
+- Normalization checks cover Unicode 17.0.0 NFC and Arabic Presentation
+  Forms-A/B. They flag one visible text element at a time and do not rewrite
+  files. `Tatweel` defaults to `warning`; set it to `info` or `off` when
+  kashida is an intentional typographic choice. Presentation-form and
+  normalization findings can be baselined, like lint rules.
 - PO plural forms are flattened. Languages with different plural counts will
   report `ExtraKey` on their additional forms until the plural-aware rule
   engine lands in 0.7.

@@ -26,6 +26,15 @@ public static class Reporter
                 $"{location}  {SeverityText(diagnostic.Severity, options.Color)}  {diagnostic.Code}{key}");
             writer.WriteLine($"  {diagnostic.Message}");
 
+            if (diagnostic.Bidi is { } bidi)
+            {
+                var levels = FormatLevels(bidi);
+                writer.WriteLine(
+                    $"  logical: \"{bidi.Logical}\"; paragraph level {bidi.ParagraphLevel} ({DirectionName(bidi.ParagraphLevel)}), {levels}");
+                if (bidi.Visual is not null)
+                    writer.WriteLine($"  visual: \"{bidi.Visual}\"");
+            }
+
             foreach (var related in diagnostic.Related ?? Array.Empty<RelatedDiagnostic>())
             {
                 var relatedPath = DisplayPath(result.WorkingDirectory, related.FilePath);
@@ -126,7 +135,42 @@ public static class Reporter
                     ToRange(related.Span),
                     related.Key))
                 .ToList(),
-            diagnostic.HelpUri);
+            diagnostic.HelpUri,
+            diagnostic.Bidi is null
+                ? null
+                : new JsonBidi(
+                    diagnostic.Bidi.Logical,
+                    diagnostic.Bidi.ParagraphLevel,
+                    diagnostic.Bidi.Levels
+                        .Select(level => new JsonBidiLevel(
+                            level.Start,
+                            level.Length,
+                            level.Level))
+                        .ToList(),
+                    diagnostic.Bidi.Visual));
+
+    private static string FormatLevels(BidiExplanation explanation)
+    {
+        if (explanation.Levels.Count == 0) return "no resolved levels";
+
+        var totalLength = explanation.Levels.Sum(level => level.Length);
+        var distinctLevels = explanation.Levels
+            .Select(level => level.Level)
+            .Distinct()
+            .ToList();
+        if (distinctLevels.Count == 1)
+        {
+            var level = distinctLevels[0];
+            return $"run level {level} ({DirectionName(level)}) for {totalLength} code unit{(totalLength == 1 ? "" : "s")}";
+        }
+
+        var levels = string.Join(
+            ", ",
+            explanation.Levels.Select(level => $"{level.Level} ({DirectionName(level.Level)})"));
+        return $"run levels {levels}";
+    }
+
+    private static string DirectionName(int level) => level % 2 == 0 ? "LTR" : "RTL";
 
     private static JsonRange? ToRange(SourceSpan? span) =>
         span is null
@@ -226,7 +270,16 @@ public static class Reporter
         string? File,
         JsonRange? Range,
         List<JsonRelated>? Related,
-        string? HelpUri);
+        string? HelpUri,
+        JsonBidi? Bidi);
+
+    private sealed record JsonBidi(
+        string Logical,
+        int ParagraphLevel,
+        List<JsonBidiLevel> Levels,
+        string? Visual);
+
+    private sealed record JsonBidiLevel(int Start, int Length, int Level);
 
     private sealed record JsonSuppressed(
         string Source,

@@ -3,6 +3,15 @@ using System.Text.RegularExpressions;
 
 namespace BidiLint;
 
+[Flags]
+public enum NumeralSystem
+{
+    None = 0,
+    Western = 1,
+    ArabicIndic = 2,
+    ExtendedArabicIndic = 4,
+}
+
 // Character-level facts about one string, computed once and shared by the
 // checks. It identifies scripts and control characters; BidiResolver owns
 // UAX #9 levels and visual ordering.
@@ -11,8 +20,10 @@ public sealed record StringScan
     public bool HasArabic { get; init; }
     public bool HasHebrew { get; init; }
     public bool HasRtlScript { get; init; }
+    public NumeralSystem NumeralSystems { get; init; }
     public bool HasWesternDigits { get; init; }
     public bool HasArabicIndicDigits { get; init; }
+    public bool HasExtendedArabicIndicDigits { get; init; }
     public bool HasBidiControls { get; init; }
     public bool HasDirectionalMarks { get; init; }
 
@@ -67,6 +78,17 @@ public static class BidiScanner
         _ => "bidi control",
     };
 
+    public static NumeralSystem GetNumeralSystem(Rune value) => value.Value switch
+    {
+        >= 0x0030 and <= 0x0039 => NumeralSystem.Western,
+        >= 0x0660 and <= 0x0669 => NumeralSystem.ArabicIndic,
+        >= 0x06F0 and <= 0x06F9 => NumeralSystem.ExtendedArabicIndic,
+        _ => NumeralSystem.None,
+    };
+
+    private static bool Has(NumeralSystem systems, NumeralSystem flag) =>
+        (systems & flag) != 0;
+
     // A Latin run: brand-like tokens ("ASP.NET Core", "C#", ".NET", "Visual Studio").
     // Tokens join across a dot or a single space when another token follows, so a
     // multi-word product name reads as one run.
@@ -100,10 +122,10 @@ public static class BidiScanner
         var hasArabic = false;
         var hasHebrew = false;
         var hasRtlScript = false;
-        var hasBidiControls = false;
-        var hasDirectionalMarks = false;
+        var numeralSystems = NumeralSystem.None;
         foreach (var scalar in UnicodeScalars.Enumerate(value))
         {
+            numeralSystems |= GetNumeralSystem(scalar.Value);
             if (!UnicodeInfo.IsRtlCharacter(scalar.Value)) continue;
 
             hasRtlScript = true;
@@ -112,6 +134,8 @@ public static class BidiScanner
             if (script == UnicodeScript.Hebrew) hasHebrew = true;
         }
 
+        var hasBidiControls = false;
+        var hasDirectionalMarks = false;
         for (var i = 0; i < value.Length; i++)
         {
             var c = value[i];
@@ -124,9 +148,11 @@ public static class BidiScanner
             HasArabic = hasArabic,
             HasHebrew = hasHebrew,
             HasRtlScript = hasRtlScript,
-            HasWesternDigits = value.Any(c => c is >= '0' and <= '9'),
-            HasArabicIndicDigits = value.Any(c =>
-                (c >= '\u0660' && c <= '\u0669') || (c >= '\u06F0' && c <= '\u06F9')),
+            NumeralSystems = numeralSystems,
+            HasWesternDigits = Has(numeralSystems, NumeralSystem.Western),
+            HasArabicIndicDigits = Has(numeralSystems, NumeralSystem.ArabicIndic),
+            HasExtendedArabicIndicDigits =
+                Has(numeralSystems, NumeralSystem.ExtendedArabicIndic),
             HasBidiControls = hasBidiControls,
             HasDirectionalMarks = hasDirectionalMarks,
         };

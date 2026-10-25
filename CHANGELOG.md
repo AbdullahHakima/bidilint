@@ -32,6 +32,32 @@
 - Added the `isolationWrappers` config key and schema support for custom
   HTML/XML isolation elements. Rule metadata, generated rule docs, the JSON
   schema, and baselines are synchronized with the new rules.
+- Added separate Western, Arabic-Indic (`0660–0669`), and Extended Arabic-Indic
+  (`06F0–06F9`) numeral-system detection. `numeralPolicy` now accepts
+  `extended-arabic-indic`, reports every system found, applies the configured
+  policy, ignores digits in markup and placeholders, and points at the visible
+  digit span.
+- Added `PresentationForm`, `Normalization`, and `Tatweel` as configurable
+  warning rules. Presentation Forms-A/B (`FB50–FDFF`, `FE70–FEFF`), non-NFC and
+  mixed composed/decomposed text, and U+0640 tatweel are checked on visible
+  values regardless of direction; markup and placeholders are masked.
+- Added run-level bidi explanations to text and JSON reports: the escaped
+  logical string, paragraph level, resolved level runs, and the visual token
+  order for `NumberAdjacency`. Findings now carry an optional `bidi` object in
+  JSON, and `Diagnostic.Bidi` exposes the same evidence to API consumers.
+- Added tests for numeral systems, all policy values, placeholder/markup
+  masking, exact source spans, normalization warnings, tatweel, visual-order
+  explanations, reporter output, and schema/config synchronization.
+
+### Changed
+
+- `StringScan.HasArabicIndicDigits` now covers only Arabic-Indic digits
+  (`0660–0669`). Use `HasExtendedArabicIndicDigits` or `NumeralSystems` for
+  Extended Arabic-Indic digits.
+- `MixedNumerals` now points at the first-to-last visible digit instead of the
+  whole value, and its message reports every recognized numeral system.
+- `Tatweel` defaults to `warning` (configurable to `info` or `off`) rather than
+  the `info` default previously sketched in the roadmap.
 
 ## [0.5.0] - 2026-10-23
 

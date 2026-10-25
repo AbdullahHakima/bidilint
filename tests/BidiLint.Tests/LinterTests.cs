@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Xunit;
 
 namespace BidiLint.Tests;
@@ -232,6 +233,109 @@ public class LinterTests
         var result = workspace.Lint();
 
         Assert.Empty(result.Diagnostics);
+    }
+
+    [Fact]
+    public void MixedNumerals_UsesTheExactJsonDigitSpan()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "n": "Value" }""");
+        var ar = """{ "n": "قيمة ٥ و 12" }""";
+        workspace.Write("ar.json", ar);
+
+        var result = workspace.Lint();
+
+        var diagnostic = Assert.Single(
+            result.Diagnostics,
+            item => item.Code == DiagnosticCodes.MixedNumerals);
+        Assert.Equal(ar.IndexOf('٥'), diagnostic.Span!.Value.Start.Offset);
+        Assert.Equal(ar.IndexOf("12", StringComparison.Ordinal) + 2, diagnostic.Span.Value.End.Offset);
+        Assert.Contains("Western digits", diagnostic.Message, StringComparison.Ordinal);
+        Assert.Contains("Arabic-Indic digits", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ExtendedArabicIndicPolicy_IsAppliedFromConfig()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "n": "Value" }""");
+        workspace.Write("ar.json", """{ "n": "قیمت ۵" }""");
+        var configPath = workspace.Write("bidilint.json", """
+            { "numeralPolicy": "extended-arabic-indic" }
+            """);
+
+        var resolution = ConfigLoader.Load(configPath);
+        var result = Linter.Lint(workspace.Load(), "en", resolution.Config);
+
+        Assert.Empty(resolution.Errors);
+        Assert.Equal(NumeralPolicy.ExtendedArabicIndic, resolution.Config.NumeralPolicy);
+        Assert.DoesNotContain(result.Diagnostics, item => item.Code == DiagnosticCodes.MixedNumerals);
+    }
+
+    [Fact]
+    public void NormalizationFinding_UsesTheExactJsonValueSpan()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "a": "Plain" }""");
+        var ar = "{\"a\":\"Cafe\u0301\"}";
+        workspace.Write("ar.json", ar);
+
+        var result = workspace.Lint();
+
+        var diagnostic = Assert.Single(
+            result.Diagnostics,
+            item => item.Code == DiagnosticCodes.Normalization);
+        var start = ar.IndexOf("e\u0301", StringComparison.Ordinal);
+        Assert.Equal(start, diagnostic.Span!.Value.Start.Offset);
+        Assert.Equal(start + 2, diagnostic.Span.Value.End.Offset);
+        Assert.Equal(DiagnosticSeverity.Warning, diagnostic.Severity);
+    }
+
+    [Fact]
+    public void TatweelFinding_UsesTheExactJsonValueSpan()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "a": "Plain" }""");
+        var ar = """{ "a": "مرحـبا" }""";
+        workspace.Write("ar.json", ar);
+
+        var result = workspace.Lint();
+
+        var diagnostic = Assert.Single(
+            result.Diagnostics,
+            item => item.Code == DiagnosticCodes.Tatweel);
+        Assert.Equal(ar.IndexOf('ـ'), diagnostic.Span!.Value.Start.Offset);
+        Assert.Equal(1, diagnostic.Span.Value.End.Offset - diagnostic.Span.Value.Start.Offset);
+    }
+
+    [Fact]
+    public void NormalizationRuleSeverityAndTatweelDisable_AreApplied()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "a": "Plain" }""");
+        workspace.Write("ar.json", """{ "a": "Cafe\u0301 مرحـبا" }""");
+        var configPath = workspace.Write("bidilint.json", """
+            {
+              "rules": {
+                "Normalization": "error",
+                "Tatweel": "off"
+              }
+            }
+            """);
+
+        var resolution = ConfigLoader.Load(configPath);
+        var (_, stdout, _) = workspace.RunCli(".", "--format", "json");
+        using var document = JsonDocument.Parse(stdout);
+        var findings = document.RootElement.GetProperty("findings").EnumerateArray().ToList();
+
+        var normalization = Assert.Single(
+            findings,
+            item => item.GetProperty("code").GetString() == DiagnosticCodes.Normalization);
+        Assert.Equal("error", normalization.GetProperty("severity").GetString());
+        Assert.DoesNotContain(
+            findings,
+            item => item.GetProperty("code").GetString() == DiagnosticCodes.Tatweel);
+        Assert.Empty(resolution.Errors);
     }
 
     [Fact]

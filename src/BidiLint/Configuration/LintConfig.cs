@@ -20,6 +20,7 @@ internal enum NumeralPolicy
     Allow,
     Western,
     ArabicIndic,
+    ExtendedArabicIndic,
 }
 
 internal enum IsolationStyle

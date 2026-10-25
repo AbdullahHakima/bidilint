@@ -355,6 +355,49 @@ public class IsolationAnalyzerTests
     }
 
     [Fact]
+    public void UnisolatedLatin_CarriesLogicalTextAndResolvedLevels()
+    {
+        var finding = Assert.Single(
+            Analyze("نص ASP.NET Core هنا"),
+            item => item.Code == DiagnosticCodes.UnisolatedLatin);
+
+        Assert.NotNull(finding.Bidi);
+        Assert.Equal("ASP.NET Core", finding.Bidi!.Logical);
+        Assert.Equal(1, finding.Bidi.ParagraphLevel);
+        Assert.NotEmpty(finding.Bidi.Levels);
+        Assert.All(finding.Bidi.Levels, level => Assert.Equal(2, level.Level));
+        Assert.Null(finding.Bidi.Visual);
+    }
+
+    [Fact]
+    public void NumberAdjacency_CarriesVisualOrderExplanation()
+    {
+        var finding = Assert.Single(
+            Analyze("نص ١ ٢ هنا"),
+            item => item.Code == DiagnosticCodes.NumberAdjacency);
+
+        Assert.NotNull(finding.Bidi);
+        Assert.Equal("١ ٢", finding.Bidi!.Logical);
+        Assert.Equal(1, finding.Bidi.ParagraphLevel);
+        Assert.Equal(2, finding.Bidi.Levels.Count);
+        Assert.All(finding.Bidi.Levels, level => Assert.Equal(2, level.Level));
+        Assert.NotNull(finding.Bidi.Visual);
+        Assert.Contains("٢", finding.Bidi.Visual, StringComparison.Ordinal);
+        Assert.Contains("١", finding.Bidi.Visual, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CrossedIsolateBoundary_EscapesControlsInTheExplanation()
+    {
+        var finding = Assert.Single(
+            Analyze("نص AS\u2069P.NET هنا"),
+            item => item.Code == DiagnosticCodes.UnisolatedLatin);
+
+        Assert.NotNull(finding.Bidi);
+        Assert.Contains("\\u{2069}", finding.Bidi!.Logical, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void PureLatinValueInAnRtlCulture_IsNotUnisolatedLatin()
     {
         var findings = Analyze("ASP.NET Core", culture: "ar");

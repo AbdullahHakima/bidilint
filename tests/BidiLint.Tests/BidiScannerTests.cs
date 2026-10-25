@@ -107,6 +107,28 @@ public class BidiScannerTests
         var scan = BidiScanner.Scan("عدد المنتجات ٥ و 12 منتج");
         Assert.True(scan.HasWesternDigits);
         Assert.True(scan.HasArabicIndicDigits);
+        Assert.False(scan.HasExtendedArabicIndicDigits);
+    }
+
+    [Fact]
+    public void ExtendedArabicIndic_IsADistinctSystem()
+    {
+        var scan = BidiScanner.Scan("قیمت ۵ ریال");
+        Assert.False(scan.HasWesternDigits);
+        Assert.False(scan.HasArabicIndicDigits);
+        Assert.True(scan.HasExtendedArabicIndicDigits);
+        Assert.Equal(NumeralSystem.ExtendedArabicIndic, scan.NumeralSystems);
+    }
+
+    [Fact]
+    public void AllThreeNumeralSystems_AreReportedTogether()
+    {
+        var scan = BidiScanner.Scan("٥ 5 ۵");
+        Assert.Equal(
+            NumeralSystem.Western |
+            NumeralSystem.ArabicIndic |
+            NumeralSystem.ExtendedArabicIndic,
+            scan.NumeralSystems);
     }
 
     [Fact]
