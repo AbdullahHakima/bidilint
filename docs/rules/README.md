@@ -17,11 +17,14 @@ This file is generated from `RuleCatalog` and checked by a test.
 | [`MixedNumerals`](#mixednumerals) | warning | bidi | no | 0.1.0 | yes |
 | [`NoLocaleFiles`](#nolocalefiles) | error | discovery | no | 0.3.0 | no |
 | [`NonStringValue`](#nonstringvalue) | warning | format | no | 0.3.0 | no |
+| [`Normalization`](#normalization) | warning | unicode | no | 0.6.0 | yes |
 | [`NumberAdjacency`](#numberadjacency) | warning | bidi | no | 0.6.0 | yes |
 | [`PathNotFound`](#pathnotfound) | error | discovery | no | 0.3.0 | no |
 | [`PlaceholderMismatch`](#placeholdermismatch) | error | placeholder | no | 0.1.0 | yes |
+| [`PresentationForm`](#presentationform) | warning | unicode | no | 0.6.0 | yes |
 | [`StaleBaseline`](#stalebaseline) | warning | configuration | no | 0.5.0 | no |
 | [`StaleSuppression`](#stalesuppression) | warning | configuration | no | 0.5.0 | no |
+| [`Tatweel`](#tatweel) | warning | unicode | no | 0.6.0 | yes |
 | [`UnbalancedIsolates`](#unbalancedisolates) | error | bidi | no | 0.1.0 | yes |
 | [`UnisolatedLatin`](#unisolatedlatin) | warning | bidi | no | 0.1.0 | yes |
 | [`UnreadablePath`](#unreadablepath) | error | discovery | no | 0.3.0 | no |
@@ -111,7 +114,7 @@ Suppress with an `ignore` entry, or change the severity under `rules.MissingKey`
 
 **Mixed numerals** · warning · bidi · since 0.1.0
 
-One string uses more than one numeral system, or violates the configured numeral policy.
+One string uses more than one numeral system, or violates the configured numeral policy. Western, Arabic-Indic, and Extended Arabic-Indic digits are distinguished.
 
 Suppress with an `ignore` entry, or change the severity under `rules.MixedNumerals`.
 
@@ -130,6 +133,14 @@ This is a load, format, or configuration diagnostic. It cannot be suppressed or 
 A JSON value is not a string and cannot be analyzed as user-visible locale text.
 
 This is a load, format, or configuration diagnostic. It cannot be suppressed or reconfigured; fix the input and rerun BidiLint.
+
+## Normalization
+
+**Non-NFC text** · warning · unicode · since 0.6.0
+
+A visible text element is not in Unicode NFC, or the value mixes composed and decomposed forms. Normalize values at the source so search, comparison, and rendering are stable.
+
+Suppress with an `ignore` entry, or change the severity under `rules.Normalization`.
 
 ## NumberAdjacency
 
@@ -155,6 +166,14 @@ The placeholders in a translated value differ from the base value.
 
 Suppress with an `ignore` entry, or change the severity under `rules.PlaceholderMismatch`.
 
+## PresentationForm
+
+**Arabic presentation form** · warning · unicode · since 0.6.0
+
+Arabic Presentation Forms-A or -B (U+FB50-U+FDFF and U+FE70-U+FEFF) are present. These compatibility characters should be stored as standard Arabic letters so normalization, search, and shaping remain stable.
+
+Suppress with an `ignore` entry, or change the severity under `rules.PresentationForm`.
+
 ## StaleBaseline
 
 **Stale baseline entry** · warning · configuration · since 0.5.0
@@ -170,6 +189,14 @@ This is a load, format, or configuration diagnostic. It cannot be suppressed or 
 An ignore rule did not match a finding, matched only findings that were already suppressed, or expired.
 
 This is a load, format, or configuration diagnostic. It cannot be suppressed or reconfigured; fix the input and rerun BidiLint.
+
+## Tatweel
+
+**Arabic tatweel** · warning · unicode · since 0.6.0
+
+Arabic tatweel (U+0640) is present. It elongates glyphs but is not a letter; keep it only for intentional kashida and configure the rule when that policy is deliberate.
+
+Suppress with an `ignore` entry, or change the severity under `rules.Tatweel`.
 
 ## UnbalancedIsolates
 

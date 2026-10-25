@@ -2,13 +2,6 @@ using System.Text;
 
 namespace BidiLint;
 
-internal sealed record ValueFinding(
-    string Code,
-    DiagnosticSeverity Severity,
-    string Message,
-    int Start,
-    int Length);
-
 // Isolation and control-character analysis for one decoded locale value.
 // Findings carry decoded-value offsets; the linter maps them back to source
 // spans and falls back to the whole value when a format has no source map.
@@ -21,8 +14,20 @@ internal static class IsolationAnalyzer
         LintConfig config,
         StringScan scan)
     {
-        var findings = new List<ValueFinding>();
         var content = ContentMask.Build(value, config.IsolationWrappers, out var markup);
+        return Analyze(value, culture, rtlCulture, config, scan, content, markup);
+    }
+
+    public static IReadOnlyList<ValueFinding> Analyze(
+        string value,
+        string culture,
+        bool rtlCulture,
+        LintConfig config,
+        StringScan scan,
+        ContentMask content,
+        MarkupScanResult markup)
+    {
+        var findings = new List<ValueFinding>();
 
         // Controls inside markup or placeholders are not rendered, so the
         // structural scan uses the masked text while keeping every offset.
@@ -172,6 +177,8 @@ internal static class IsolationAnalyzer
         {
             if (IsAllowed(candidate.Text, culture, config)) continue;
 
+            var explanation = context.Explain(value, candidate.Start, candidate.Length);
+
             if (candidate.Kind == LatinCandidateKind.CrossedBoundary)
             {
                 var enclosing = FindInnermostRegion(
@@ -198,9 +205,10 @@ internal static class IsolationAnalyzer
                 findings.Add(new ValueFinding(
                     DiagnosticCodes.UnisolatedLatin,
                     DiagnosticSeverity.Warning,
-                    $"Latin run \"{Display(candidate.Text)}\" crosses {control} at value offset {boundary}; one left-to-right token is split by the isolate boundary. Move the boundary outside the token or isolate the whole token.",
+                    $"Latin run \"{DiagnosticText.Escape(candidate.Text)}\" crosses {control} at value offset {boundary}; one left-to-right token is split by the isolate boundary. Move the boundary outside the token or isolate the whole token.",
                     candidate.Start,
-                    candidate.Length));
+                    candidate.Length,
+                    explanation));
                 continue;
             }
 
@@ -210,9 +218,10 @@ internal static class IsolationAnalyzer
                 findings.Add(new ValueFinding(
                     DiagnosticCodes.UnisolatedLatin,
                     DiagnosticSeverity.Warning,
-                    $"Latin run \"{candidate.Text}\" is not isolated from the surrounding RTL text (resolved level {context.LevelAtChar(candidate.Start)}). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir=\"ltr\".",
+                    $"Latin run \"{DiagnosticText.Escape(candidate.Text)}\" is not isolated from the surrounding RTL text (resolved level {context.LevelAtChar(candidate.Start)}). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir=\"ltr\".",
                     candidate.Start,
-                    candidate.Length));
+                    candidate.Length,
+                    explanation));
                 continue;
             }
 
@@ -232,9 +241,10 @@ internal static class IsolationAnalyzer
             findings.Add(new ValueFinding(
                 DiagnosticCodes.UnisolatedLatin,
                 DiagnosticSeverity.Warning,
-                $"Latin run \"{candidate.Text}\" is inside {region.Label}, but {reason}. The run resolves at level {context.LevelAtChar(candidate.Start)}; {repair}.",
+                $"Latin run \"{DiagnosticText.Escape(candidate.Text)}\" is inside {region.Label}, but {reason}. The run resolves at level {context.LevelAtChar(candidate.Start)}; {repair}.",
                 candidate.Start,
-                candidate.Length));
+                candidate.Length,
+                explanation));
         }
     }
 
@@ -447,7 +457,7 @@ internal static class IsolationAnalyzer
 
         if (!reordered) return;
 
-        var logical = string.Join(", ", group.Select(token => token.Text));
+        var logical = string.Join(", ", group.Select(token => DiagnosticText.Escape(token.Text)));
         var visual = string.Join(
             ", ",
             group
@@ -455,12 +465,23 @@ internal static class IsolationAnalyzer
                 .OrderBy(item => item.Position)
                 .Select(item => item.Text));
         var paragraph = context.ParagraphLevel % 2 == 1 ? "RTL" : "LTR";
+        var explanation = new BidiExplanation(
+            DiagnosticText.Escape(value[first.Start..last.End]),
+            context.ParagraphLevel,
+            group
+                .Select(token => new BidiLevelRun(
+                    token.Start - first.Start,
+                    token.Length,
+                    context.LevelAtChar(token.Start)))
+                .ToList(),
+            DiagnosticText.Escape(visual));
         findings.Add(new ValueFinding(
             DiagnosticCodes.NumberAdjacency,
             DiagnosticSeverity.Warning,
             $"Numbers {logical} are separated only by neutral characters and resolve visually as {visual} from left to right in this {paragraph} paragraph. Wrap the sequence in an LRI/FSI if the logical order must stay visible.",
             first.Start,
-            last.End - first.Start));
+            last.End - first.Start,
+            explanation));
     }
 
     private static List<NumberToken> FindNumberTokens(string value, ContentMask content)
@@ -593,29 +614,6 @@ internal static class IsolationAnalyzer
 
     private static string DescribeControl(char c) =>
         $"{BidiScanner.ControlName(c)} (U+{(int)c:X4})";
-
-    private static string Display(string text)
-    {
-        var builder = new System.Text.StringBuilder(text.Length);
-        foreach (var scalar in UnicodeScalars.Enumerate(text))
-        {
-            if (scalar.Value.Value <= char.MaxValue &&
-                BidiScanner.IsBidiControl((char)scalar.Value.Value))
-            {
-                builder.Append("\\u{");
-                builder.Append(scalar.CodePoint.ToString(
-                    "X4",
-                    System.Globalization.CultureInfo.InvariantCulture));
-                builder.Append('}');
-            }
-            else
-            {
-                builder.Append(scalar.Value.ToString());
-            }
-        }
-
-        return builder.ToString();
-    }
 
     private sealed record IsolationRegion(
         int Start,

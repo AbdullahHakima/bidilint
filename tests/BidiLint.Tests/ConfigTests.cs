@@ -290,7 +290,10 @@ public class ConfigTests
               "rules": {
                 "BidiControl": "warning",
                 "IsolateDepth": "off",
-                "NumberAdjacency": "error"
+                "NumberAdjacency": "error",
+                "PresentationForm": "error",
+                "Normalization": "info",
+                "Tatweel": "off"
               }
             }
             """);
@@ -301,6 +304,27 @@ public class ConfigTests
         Assert.Equal(DiagnosticSeverity.Warning, resolution.Config.Rules["BidiControl"].Severity);
         Assert.True(resolution.Config.Rules["IsolateDepth"].Disabled);
         Assert.Equal(DiagnosticSeverity.Error, resolution.Config.Rules["NumberAdjacency"].Severity);
+        Assert.Equal(
+            DiagnosticSeverity.Error,
+            resolution.Config.Rules["PresentationForm"].Severity);
+        Assert.Equal(
+            DiagnosticSeverity.Info,
+            resolution.Config.Rules["Normalization"].Severity);
+        Assert.True(resolution.Config.Rules["Tatweel"].Disabled);
+    }
+
+    [Fact]
+    public void ExtendedArabicIndicNumeralPolicy_IsParsed()
+    {
+        using var workspace = new TestWorkspace();
+        var configPath = workspace.Write("bidilint.json", """
+            { "numeralPolicy": "extended-arabic-indic" }
+            """);
+
+        var resolution = ConfigLoader.Load(configPath);
+
+        Assert.Empty(resolution.Errors);
+        Assert.Equal(NumeralPolicy.ExtendedArabicIndic, resolution.Config.NumeralPolicy);
     }
 
     [Fact]

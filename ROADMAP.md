@@ -2,7 +2,7 @@
 
 > **From a working prototype to a production localization linter teams keep in CI.**
 >
-> Current release: **0.5.0** (2026-10-23) · Target: **1.0.0** · Last reviewed: 2026-10-23
+> Current release: **0.5.0** (2026-10-23) · Target: **1.0.0** · Last reviewed: 2026-10-26
 
 ---
 
@@ -79,7 +79,7 @@ place. The remaining gaps below drive the next phases.
 | Provenance | Per-document entries with source spans; format-specific parser positions; comparison findings link to the base; bidi findings map decoded values back to source ranges where the format allows it | Snippets, SARIF, and edit ranges for fixes |
 | Text output | Relative `path:line:column`, code, key, message, related base location, quiet/color modes, suppression counts | Snippets, SARIF/GitHub annotations, output files, and MSBuild/JUnit formats |
 | Placeholders | Braced-token comparison against the base; configurable dialect gate | Escaped braces, ICU plural/select, printf, i18next, Angular, and format-aware validation (0.7) |
-| Bidi checks | Script-aware RTL detection; UAX #9 resolved levels; span-aware isolation, control, depth, number-adjacency, and mixed-numeral rules; built-in mitigation recognition | Trojan Source and invisible-control security rules (0.6); run-level visual-order explanations and SARIF (0.8) |
+| Bidi checks | Script-aware RTL detection; UAX #9 resolved levels; span-aware isolation, control, depth, number-adjacency, mixed-numeral, presentation-form, NFC, and tatweel rules; escaped logical/run-level explanations in text and JSON; built-in mitigation recognition | Trojan Source and invisible-control security rules (0.6); SARIF (0.8) |
 | Culture model | BCP-47 validation, explicit layouts, neutral-resource mapping to `--base`, config overrides and custom layout names | Base auto-detection when neutral resources are ambiguous, and custom tags (1.1) |
 | Config | `bidilint.json`/JSONC, published schema, discovery, `--config`, `--no-config`, `--init`, include/exclude, layouts/files, rules, terms, RTL cultures, isolation wrappers, output policy | Path-scoped rule severity overrides (0.8), YAML config |
 | Baseline | SHA-256 baseline create/update/apply, stale-entry reporting, tamper validation | Security-rule restrictions and baseline merge workflows (0.6) |
@@ -394,18 +394,18 @@ order or handle Hebrew is a demo, not a tool.
 - [x] Recognize mitigations already present in the value: LRI/FSI/RLI..PDI,
       `<bdi>`, `dir="ltr"`, `<code>`, and configured wrappers. Do not flag
       content that is already isolated correctly.
-- [ ] Separate numeral systems: Western, Arabic-Indic (`0660–0669`),
-      Extended Arabic-Indic (`06F0–06F9`), and other configured sets. Report
-      which systems were found.
+- [x] Separate numeral systems: Western, Arabic-Indic (`0660–0669`), and
+      Extended Arabic-Indic (`06F0–06F9`); report which systems were found and
+      apply the configured numeral policy.
 - [ ] Add security rules: bidi override characters (Trojan Source), mid-string
       BOM, suspicious invisible characters, and unpaired directional marks.
       Do not blanket-flag legitimate ZWJ/ZWNJ in Arabic/Persian/Urdu; require
       context and make the rule configurable.
-- [ ] Add normalization checks: presentation forms (`FB50–FEFF`), non-NFC
+- [x] Add normalization checks: presentation forms (`FB50–FEFF`), non-NFC
       sequences, and tatweel policy (warning, not error).
-- [ ] Add a visual-order explanation: for each flagged run, show the resolved
+- [x] Add a visual-order explanation: for each flagged run, show the resolved
       level change and an escaped logical string, not just "may render wrong".
-- [ ] Add Hebrew, Persian, Urdu, mixed-numeral, control-character, and
+- [x] Add Hebrew, Persian, Urdu, mixed-numeral, control-character, and
       visual-order fixtures.
 
 **Exit criteria:** the engine passes the documented Unicode conformance
@@ -614,14 +614,14 @@ until 1.0.
 | `UnisolatedLatin` | warning | shipped, rewritten 0.6 | LTR run not isolated in RTL text |
 | `MixedNumerals` | warning | shipped, extended 0.6 | More than one numeral system in one string |
 | `UnbalancedIsolates` | error | shipped, extended 0.6 | Unclosed/misordered isolates, stray PDI |
-| `BidiControl` | error | 0.6 | Unbalanced/ineffective legacy embeddings/overrides, overflow |
+| `BidiControl` | error | shipped 0.6 | Unbalanced/ineffective legacy embeddings/overrides, overflow |
 | `BidiOverride` | error | 0.6 | Trojan Source-style override sequences |
-| `IsolateDepth` | warning | 0.6 | Excessive or empty isolate nesting |
-| `NumberAdjacency` | warning | 0.6 | Adjacent numeric tokens resolve in a different visual order |
-| `PresentationForm` | warning | 0.6 | Legacy Arabic presentation forms |
-| `Normalization` | warning | 0.6 | Non-NFC values, mixed normalization |
+| `IsolateDepth` | warning | shipped 0.6 | Excessive or empty isolate nesting |
+| `NumberAdjacency` | warning | shipped 0.6 | Adjacent numeric tokens resolve in a different visual order |
+| `PresentationForm` | warning | shipped 0.6 | Legacy Arabic presentation forms |
+| `Normalization` | warning | shipped 0.6 | Non-NFC values, mixed normalization |
 | `InvisibleCharacter` | warning | 0.6 | Mid-string BOM, suspicious invisibles |
-| `Tatweel` | info | 0.6 | Optional kashida policy |
+| `Tatweel` | warning | shipped 0.6 | Optional kashida policy |
 
 ### Security
 

@@ -187,26 +187,31 @@ public static class Linter
 
             var scan = BidiScanner.Scan(entry.Value);
             var rtlCulture = IsRtl(set.Culture, config);
-            if (!rtlCulture && !scan.HasRtlScript && !scan.HasBidiControls) continue;
+            var needsBidi = rtlCulture || scan.HasRtlScript || scan.HasBidiControls;
+            var needsNormalization = NormalizationAnalyzer.MightContainFindings(entry.Value);
+            if (!needsBidi && !needsNormalization) continue;
 
-            if (ViolatesNumeralPolicy(scan, config.NumeralPolicy))
+            var content = ContentMask.Build(
+                entry.Value,
+                config.IsolationWrappers,
+                out var markup);
+            var findings = new List<ValueFinding>();
+            if (needsBidi)
             {
-                result.Diagnostics.Add(new Diagnostic(
-                    DiagnosticCodes.MixedNumerals,
-                    DiagnosticSeverity.Warning,
-                    NumeralMessage(config.NumeralPolicy),
-                    entry.Document.FilePath,
-                    entry.Span,
+                findings.AddRange(NumeralAnalyzer.Analyze(content, config.NumeralPolicy));
+                findings.AddRange(IsolationAnalyzer.Analyze(
+                    entry.Value,
                     set.Culture,
-                    entry.Key));
+                    rtlCulture,
+                    config,
+                    scan,
+                    content,
+                    markup));
             }
 
-            var findings = IsolationAnalyzer.Analyze(
-                entry.Value,
-                set.Culture,
-                rtlCulture,
-                config,
-                scan);
+            if (needsNormalization)
+                findings.AddRange(NormalizationAnalyzer.Analyze(entry.Value, content));
+
             foreach (var finding in findings)
             {
                 result.Diagnostics.Add(new Diagnostic(
@@ -216,7 +221,8 @@ public static class Linter
                     entry.Document.FilePath,
                     MapSpan(entry, finding),
                     set.Culture,
-                    entry.Key));
+                    entry.Key,
+                    Bidi: finding.Bidi));
             }
         }
     }
@@ -238,26 +244,6 @@ public static class Linter
 
         return entry.Span;
     }
-
-    private static bool ViolatesNumeralPolicy(StringScan scan, NumeralPolicy policy) =>
-        policy switch
-        {
-            NumeralPolicy.Allow => false,
-            NumeralPolicy.Western => scan.HasArabicIndicDigits,
-            NumeralPolicy.ArabicIndic => scan.HasWesternDigits,
-            _ => scan.HasWesternDigits && scan.HasArabicIndicDigits,
-        };
-
-    private static string NumeralMessage(NumeralPolicy policy) =>
-        policy switch
-        {
-            NumeralPolicy.Western =>
-                "Numeral policy is western, but Arabic-Indic digits (٠-٩) were found; use Western digits (0-9).",
-            NumeralPolicy.ArabicIndic =>
-                "Numeral policy is Arabic-Indic, but Western digits (0-9) were found; use Arabic-Indic digits (٠-٩).",
-            _ =>
-                "Mixes Western digits (0-9) and Arabic-Indic digits (٠-٩) in one string; pick one numeral system per string.",
-        };
 
     private static void Sort(LintResult result) =>
         result.Diagnostics.Sort(DiagnosticOrder.ByLocation);

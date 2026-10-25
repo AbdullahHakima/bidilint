@@ -824,6 +824,7 @@ internal static class ConfigLoader
             "allow" => NumeralPolicy.Allow,
             "western" => NumeralPolicy.Western,
             "arabic-indic" => NumeralPolicy.ArabicIndic,
+            "extended-arabic-indic" => NumeralPolicy.ExtendedArabicIndic,
             _ => InvalidNumeralPolicy(value, errors),
         };
     }
@@ -831,7 +832,7 @@ internal static class ConfigLoader
     private static NumeralPolicy InvalidNumeralPolicy(string value, List<string> errors)
     {
         errors.Add(
-            $"numeralPolicy must be mixed, allow, western, or arabic-indic; found \"{value}\".");
+            $"numeralPolicy must be mixed, allow, western, arabic-indic, or extended-arabic-indic; found \"{value}\".");
         return NumeralPolicy.Mixed;
     }
 

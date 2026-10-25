@@ -24,6 +24,19 @@ public sealed record TextEdit(SourceSpan Span, string NewText);
 
 public sealed record DiagnosticFix(string Title, IReadOnlyList<TextEdit> Edits);
 
+// A compact slice of the resolved level map. Offsets index the decoded
+// logical run before DiagnosticText escaping; escaping only changes display.
+public sealed record BidiLevelRun(int Start, int Length, int Level);
+
+// Evidence for a bidi finding: the logical run with invisible controls
+// escaped, the paragraph level, and the resolved levels that apply to it.
+// Visual is populated only when the rule can state the reordered token order.
+public sealed record BidiExplanation(
+    string Logical,
+    int ParagraphLevel,
+    IReadOnlyList<BidiLevelRun> Levels,
+    string? Visual = null);
+
 public sealed record Diagnostic(
     string Code,
     DiagnosticSeverity Severity,
@@ -34,7 +47,8 @@ public sealed record Diagnostic(
     string? Key = null,
     IReadOnlyList<RelatedDiagnostic>? Related = null,
     string? HelpUri = null,
-    IReadOnlyList<DiagnosticFix>? Fixes = null);
+    IReadOnlyList<DiagnosticFix>? Fixes = null,
+    BidiExplanation? Bidi = null);
 
 public static class DiagnosticCodes
 {
@@ -52,6 +66,9 @@ public static class DiagnosticCodes
     public const string PlaceholderMismatch = nameof(PlaceholderMismatch);
     public const string UnisolatedLatin = nameof(UnisolatedLatin);
     public const string MixedNumerals = nameof(MixedNumerals);
+    public const string PresentationForm = nameof(PresentationForm);
+    public const string Normalization = nameof(Normalization);
+    public const string Tatweel = nameof(Tatweel);
     public const string UnbalancedIsolates = nameof(UnbalancedIsolates);
     public const string BidiControl = nameof(BidiControl);
     public const string IsolateDepth = nameof(IsolateDepth);
