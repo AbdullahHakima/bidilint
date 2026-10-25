@@ -82,7 +82,7 @@
     },
     "ignore": {
       "type": "array",
-      "description": "Audited suppressions. Every entry requires a reason and at least one selector.",
+      "description": "Audited suppressions. Every entry requires a reason and at least one selector. BidiOverride and InvisibleControl additionally require an explicit rule selector; path-, culture-, or key-only entries never suppress security findings.",
       "items": { "$ref": "#/$defs/ignore" }
     },
     "allowLatin": {
@@ -209,6 +209,8 @@
             "Tatweel",
             "UnbalancedIsolates",
             "BidiControl",
+            "BidiOverride",
+            "InvisibleControl",
             "IsolateDepth",
             "NumberAdjacency"
           ]

@@ -74,6 +74,44 @@ public class ConfigTests
         Assert.Contains("MissingKey", resolution.Errors[0], StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("BidiOverride")]
+    [InlineData("InvisibleControl")]
+    public void SecurityRules_CannotBeConfiguredThroughRules(string rule)
+    {
+        using var workspace = new TestWorkspace();
+        var configPath = workspace.Write("bidilint.json", $$"""
+            { "rules": { "{{rule}}": "off" } }
+            """);
+
+        var resolution = ConfigLoader.Load(configPath);
+
+        var error = Assert.Single(resolution.Errors);
+        Assert.Contains("security rules can only be waived", error, StringComparison.Ordinal);
+        Assert.Empty(resolution.Config.Rules);
+    }
+
+    [Theory]
+    [InlineData("BidiOverride")]
+    [InlineData("InvisibleControl")]
+    public void SecurityRules_CanBeNamedByAReasonedIgnore(string rule)
+    {
+        using var workspace = new TestWorkspace();
+        var configPath = workspace.Write("bidilint.json", $$"""
+            {
+              "ignore": [
+                { "rule": "{{rule}}", "reason": "Reviewed legacy content; tracked in SEC-123." }
+              ]
+            }
+            """);
+
+        var resolution = ConfigLoader.Load(configPath);
+
+        Assert.Empty(resolution.Errors);
+        Assert.Single(resolution.Config.Ignore);
+        Assert.Equal(rule, resolution.Config.Ignore[0].Rule);
+    }
+
     [Fact]
     public void IgnoreRequiresReasonAndASelector()
     {
@@ -332,7 +370,7 @@ public class ConfigTests
     {
         using var workspace = new TestWorkspace();
         workspace.Write("en.json", """{ "a": "Text" }""");
-        workspace.Write("ar.json", """{ "a": "نص \u202Eabc" }""");
+        workspace.Write("ar.json", """{ "a": "نص \u202Babc" }""");
         workspace.Write("bidilint.json", """
             {
               "rules": {

@@ -2,7 +2,7 @@ namespace BidiLint;
 
 // Structural checks compare each culture/resource-set against its base.
 // Bidi checks run on values that contain RTL script, bidi controls, or belong
-// to an RTL culture.
+// to an RTL culture. Security controls are scanned in every value.
 public static class Linter
 {
     public static bool IsRtl(string culture) => CultureTag.IsRtl(culture);
@@ -189,7 +189,8 @@ public static class Linter
             var rtlCulture = IsRtl(set.Culture, config);
             var needsBidi = rtlCulture || scan.HasRtlScript || scan.HasBidiControls;
             var needsNormalization = NormalizationAnalyzer.MightContainFindings(entry.Value);
-            if (!needsBidi && !needsNormalization) continue;
+            var needsSecurity = SecurityAnalyzer.MightContainFindings(entry.Value);
+            if (!needsBidi && !needsNormalization && !needsSecurity) continue;
 
             var content = ContentMask.Build(
                 entry.Value,
@@ -211,6 +212,9 @@ public static class Linter
 
             if (needsNormalization)
                 findings.AddRange(NormalizationAnalyzer.Analyze(entry.Value, content));
+
+            if (needsSecurity)
+                findings.AddRange(SecurityAnalyzer.Analyze(content, rtlCulture));
 
             foreach (var finding in findings)
             {

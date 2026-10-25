@@ -71,6 +71,8 @@ public static class DiagnosticCodes
     public const string Tatweel = nameof(Tatweel);
     public const string UnbalancedIsolates = nameof(UnbalancedIsolates);
     public const string BidiControl = nameof(BidiControl);
+    public const string BidiOverride = nameof(BidiOverride);
+    public const string InvisibleControl = nameof(InvisibleControl);
     public const string IsolateDepth = nameof(IsolateDepth);
     public const string NumberAdjacency = nameof(NumberAdjacency);
     public const string BaseCultureMissing = nameof(BaseCultureMissing);

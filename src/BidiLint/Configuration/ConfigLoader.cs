@@ -479,8 +479,9 @@ internal static class ConfigLoader
 
             if (!metadata.Configurable)
             {
-                errors.Add(
-                    $"rules.{code} cannot be configured because it is a load, format, or configuration diagnostic.");
+                errors.Add(metadata.Security
+                    ? $"rules.{code} cannot be configured; security rules can only be waived with a targeted ignore entry that includes a reason."
+                    : $"rules.{code} cannot be configured because it is a load, format, or configuration diagnostic.");
                 continue;
             }
 
@@ -569,7 +570,7 @@ internal static class ConfigLoader
                         ? $"{path}.rule is unknown."
                         : $"{path}.rule is unknown. Did you mean \"{suggestion}\"?");
                 }
-                else if (!metadata.Configurable)
+                else if (!metadata.Configurable && !metadata.Waivable)
                 {
                     errors.Add(
                         $"{path}.rule cannot target a load, format, or configuration diagnostic.");

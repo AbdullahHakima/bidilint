@@ -11,7 +11,8 @@ internal sealed record RuleMetadata(
     string SinceVersion,
     bool BaselineAllowed,
     bool AllowsTerms,
-    string Description)
+    string Description,
+    bool Security = false)
 {
     private static readonly HashSet<string> ConfigurableCodes = new(StringComparer.Ordinal)
     {
@@ -31,6 +32,11 @@ internal sealed record RuleMetadata(
     };
 
     public bool Configurable => ConfigurableCodes.Contains(Code);
+
+    // Security rules are deliberately not part of ConfigurableCodes. They can
+    // only be waived by a targeted ignore entry with a reason; rules.{code},
+    // --update-baseline, and baseline files must not hide them.
+    public bool Waivable => Security;
 
     public string DocsAnchor => Code.ToLowerInvariant();
 
@@ -191,7 +197,7 @@ internal static class RuleCatalog
             SinceVersion: "0.6.0",
             BaselineAllowed: true,
             AllowsTerms: false,
-            "Arabic Presentation Forms-A or -B (U+FB50-U+FDFF and U+FE70-U+FEFF) are present. These compatibility characters should be stored as standard Arabic letters so normalization, search, and shaping remain stable."),
+            "Arabic Presentation Forms-A or -B (U+FB50-U+FDFF and U+FE70-U+FEFE) are present. These compatibility characters should be stored as standard Arabic letters so normalization, search, and shaping remain stable."),
         new(
             DiagnosticCodes.Normalization,
             "Non-NFC text",
@@ -232,6 +238,28 @@ internal static class RuleCatalog
             BaselineAllowed: true,
             AllowsTerms: false,
             "Legacy bidi embeddings or overrides are unbalanced, ineffective across an isolate, or exceed the Unicode nesting limit. Directional marks are handled by the security rules."),
+        new(
+            DiagnosticCodes.BidiOverride,
+            "Bidi override",
+            "security",
+            DiagnosticSeverity.Error,
+            Fixable: false,
+            SinceVersion: "0.6.0",
+            BaselineAllowed: false,
+            AllowsTerms: false,
+            "A left-to-right or right-to-left override (LRO/RLO) is visible in the value. Override sequences can reorder or hide text and are the basis of Trojan Source attacks; use isolates instead.",
+            Security: true),
+        new(
+            DiagnosticCodes.InvisibleControl,
+            "Invisible control",
+            "security",
+            DiagnosticSeverity.Error,
+            Fixable: false,
+            SinceVersion: "0.6.0",
+            BaselineAllowed: false,
+            AllowsTerms: false,
+            "Visible text contains a BOM, a disallowed C0/C1 control, a zero-width joiner or non-joiner without a legitimate shaping or emoji context, or a directional mark that does not affect resolved order.",
+            Security: true),
         new(
             DiagnosticCodes.IsolateDepth,
             "Isolate depth",
@@ -364,7 +392,12 @@ internal static class RuleCatalog
             builder.AppendLine();
             builder.AppendLine(rule.Description);
             builder.AppendLine();
-            if (rule.Configurable)
+            if (rule.Security)
+            {
+                builder.AppendLine(
+                    "This is a security rule. Waive a specific finding only with an `ignore` entry that names this rule and includes a reason. It cannot be disabled under `rules` or suppressed by a baseline.");
+            }
+            else if (rule.Configurable)
             {
                 builder.Append("Suppress with an `ignore` entry, or change the severity under `rules.");
                 builder.Append(rule.Code);

@@ -10,7 +10,8 @@ Nothing failed to compile. Everything looked fine in the JSON file. It broke
 in the browser, in RTL, in front of users.
 
 BidiLint is a small `dotnet tool` that scans localization files and reports
-those problems before they ship.
+those problems before they ship. It also catches Trojan Source bidi overrides,
+BOMs, and contextless invisible controls that can hide text.
 
 ## Install
 
@@ -147,9 +148,10 @@ resource set:
 
 ### Rule settings
 
-Only lint rules can be reconfigured or ignored. Load, format, and configuration
-diagnostics such as `MalformedFile`, `PathNotFound`, and `DuplicateKey` always
-remain visible and keep their built-in severity.
+Lint rules can be reconfigured or ignored. Security rules are the exception:
+they cannot be disabled under `rules` and cannot be baselined. Load, format, and
+configuration diagnostics such as `MalformedFile`, `PathNotFound`, and
+`DuplicateKey` always remain visible and keep their built-in severity.
 
 Configurable rules:
 
@@ -173,6 +175,17 @@ Set a rule to `off`, `error`, `warning`, or `info`. A rule object may also carry
 `allow` (used by `UnisolatedLatin`). `allowLatin` accepts exact strings or
 objects with `match: "exact" | "case-insensitive"`, an optional `reason`, and an
 optional `cultures` scope.
+
+Security rules are not configurable through `rules`:
+
+| Rule | Default | Meaning |
+| --- | --- | --- |
+| `BidiOverride` | error | A visible LRO/RLO override is present; overrides can reorder or hide text (Trojan Source) |
+| `InvisibleControl` | error | A BOM, disallowed C0/C1 control, contextless ZWJ/ZWNJ, or ineffective directional mark is present |
+
+Waive a specific security finding with an `ignore` entry that names the rule and
+includes a reason. A path-, culture-, or key-only ignore never suppresses a
+security finding.
 
 `rtlCultures` supplements the built-in RTL language/script list. An explicit
 script subtag overrides the language default: `az-Arab` and `en-Arab` are RTL,
@@ -201,7 +214,8 @@ Every `ignore` entry needs a non-empty `reason` and at least one selector:
 `key` are globs. An optional `expires` date (`YYYY-MM-DD`) makes temporary
 waivers self-cleaning. Entries that match nothing, or that have expired,
 produce `StaleSuppression` warnings so the config does not grow a permanent
-graveyard.
+graveyard. Security findings require the explicit `rule` selector; broad
+path/key suppressions do not match them.
 
 Suppressed findings are removed from the visible report but remain auditable in
 the JSON `suppressedFindings` array with their source, reason, and the original
@@ -227,10 +241,11 @@ is relative to the config file; a `--baseline` path is relative to the working
 directory. A baseline is not written when an input path is missing or the base
 culture cannot be found. After a successful write, diagnostics that cannot be
 baselined still decide the exit code. Baselines never suppress load, format, or
-configuration diagnostics; those cannot be hidden by config. Entries that no
-longer match a current finding produce `StaleBaseline` warnings, and malformed
-or tampered baseline files are usage errors. Security rule baseline
-restrictions are part of the 0.6 security work.
+configuration diagnostics; those cannot be hidden by config. Security rules
+(`BidiOverride` and `InvisibleControl`) are never written to a baseline, and a
+baseline file that names one is rejected. Entries that no longer match a
+current finding produce `StaleBaseline` warnings, and malformed or tampered
+baseline files are usage errors.
 
 ## Supported layouts
 
@@ -293,13 +308,27 @@ Inside any visible value, regardless of direction:
 | `Normalization` | warning | A visible text element is not Unicode NFC, or the value mixes composed and decomposed forms |
 | `Tatweel` | warning | Arabic tatweel (U+0640) is present; keep it only for intentional kashida |
 
+Security checks (every visible value, including English and other LTR text):
+
+| Check | Severity | Meaning |
+| --- | --- | --- |
+| `BidiOverride` | error | A visible LRO/RLO override can reorder or hide text (Trojan Source); use isolates instead |
+| `InvisibleControl` | error | A BOM, disallowed C0/C1 control, contextless ZWJ/ZWNJ, or ineffective LRM/RLM/ALM is present |
+
+ZWJ and ZWNJ are accepted next to Arabic, Persian, Urdu, and other
+joining-script letters, after a virama in Indic text, and (for ZWJ) inside emoji
+sequences. A directional mark is reported when replacing it with the
+boundary-neutral sentinel leaves the paragraph level and every visible resolved
+level unchanged.
+
 BidiLint uses the checked-in UAX #9 resolver to decide whether a run is
 actually at risk. It recognizes LRI/FSI/RLI..PDI, `<bdi>`, `<code>`,
 `dir="ltr"`, and configured `isolationWrappers` as mitigation. An RLI, an
 explicit `dir="rtl"` wrapper, or an auto-direction wrapper whose first strong
 character is RTL is reported as the wrong isolate direction. Markup tags,
-entities, and placeholders are masked before Latin-run, number, numeral, and
-normalization analysis, so their identifiers do not become findings.
+entities, and placeholders are masked before Latin-run, number, numeral,
+normalization, and security analysis, so their identifiers do not become
+findings.
 
 For `UnisolatedLatin` and `NumberAdjacency`, the report also explains the
 resolved order. Text output includes the escaped logical run, the paragraph
@@ -374,10 +403,12 @@ characters for display. `range` remains the source span.
   invisible to BidiLint; declare `isolationStyle: "external"` only when that
   wrapping is guaranteed for every render path, or list a wrapper that is
   present in the value in `isolationWrappers`.
-- `BidiControl` covers legacy embeddings/overrides and isolate structure.
-  Balanced legacy controls and unpaired directional marks are reserved for the
-  remaining security slice. Isolate-depth findings use a recommended maximum of
-  16; the Unicode explicit-direction limit is 125.
+- `BidiControl` covers broken legacy embeddings/overrides and isolate
+  structure. `BidiOverride` separately reports every visible LRO/RLO, including
+  balanced Trojan Source sequences. Isolate-depth findings use a recommended
+  maximum of 16; the Unicode explicit-direction limit is 125. A security finding
+  can be waived only by a targeted, reasoned `ignore` entry, never by `rules` or
+  a baseline.
 - `NumberAdjacency` only fires when neutral-separated numeric tokens actually
   change visual order in the resolved paragraph. It can still warn when the
   right-to-left reading order is intentional; isolate the sequence or adjust
