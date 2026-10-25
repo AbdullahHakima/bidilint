@@ -95,6 +95,8 @@ internal sealed class LintConfig
         Array.Empty<AllowedLatinTerm>();
     public IReadOnlySet<string> RtlCultures { get; init; } =
         new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlySet<string> IsolationWrappers { get; init; } =
+        new HashSet<string>(StringComparer.OrdinalIgnoreCase);
     public PlaceholderDialect PlaceholderDialect { get; init; } = PlaceholderDialect.Auto;
     public NumeralPolicy NumeralPolicy { get; init; } = NumeralPolicy.Mixed;
     public IsolationStyle IsolationStyle { get; init; } = IsolationStyle.Isolate;

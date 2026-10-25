@@ -19,6 +19,19 @@
   including supplementary-plane characters. Explicit script subtags now
   override language defaults, so `az-Arab` is RTL while `ar-Latn` and
   `ku-Latn` are not.
+- Rewrote isolation and control-character analysis with resolved UAX #9 levels
+  and exact value spans. `UnisolatedLatin` now covers brands, URLs, emails,
+  paths, code identifiers, versions, and file names; it recognizes LRI/FSI..PDI,
+  `<bdi>`, `<code>`, `dir="ltr"`, and configured wrappers, and reports wrong
+  isolate direction or a run split by an isolate boundary.
+- Added `BidiControl`, `IsolateDepth`, and `NumberAdjacency` as configurable
+  rules. Legacy embeddings/overrides are checked for balance, PDFs ignored
+  inside isolates, and the Unicode depth limit; isolate nesting and empty
+  isolates are reported; neutral-separated numbers are checked against the
+  resolved visual order.
+- Added the `isolationWrappers` config key and schema support for custom
+  HTML/XML isolation elements. Rule metadata, generated rule docs, the JSON
+  schema, and baselines are synchronized with the new rules.
 
 ## [0.5.0] - 2026-10-23
 

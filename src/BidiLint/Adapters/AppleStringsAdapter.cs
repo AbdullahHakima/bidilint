@@ -135,6 +135,11 @@ internal sealed class AppleStringsAdapter : ILocaleAdapter
                 Document = _document,
                 Span = valueSpan,
                 KeySpan = keySpan,
+                ValueMap = ValueSourceMap.TryCreate(
+                    _source,
+                    valueSpan,
+                    value,
+                    ValueQuoteSyntax.AppleStrings),
             });
         }
 

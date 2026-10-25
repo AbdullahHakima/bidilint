@@ -103,6 +103,7 @@ discovery. `bidilint --init` writes a starter config in the working directory;
   ],
 
   "rtlCultures": ["ku-Arab"],
+  "isolationWrappers": ["x-bidi", "app-ltr"],
   "placeholderDialects": ["auto"],
   "numeralPolicy": "mixed",
   "isolationStyle": "isolate",
@@ -161,6 +162,9 @@ Configurable rules:
 | `UnisolatedLatin` | warning |
 | `MixedNumerals` | warning |
 | `UnbalancedIsolates` | error |
+| `BidiControl` | error |
+| `IsolateDepth` | warning |
+| `NumberAdjacency` | warning |
 
 Set a rule to `off`, `error`, `warning`, or `info`. A rule object may also carry
 `allow` (used by `UnisolatedLatin`). `allowLatin` accepts exact strings or
@@ -170,6 +174,9 @@ optional `cultures` scope.
 `rtlCultures` supplements the built-in RTL language/script list. An explicit
 script subtag overrides the language default: `az-Arab` and `en-Arab` are RTL,
 while `ar-Latn` and `ku-Latn` are not.
+`isolationWrappers` adds HTML/XML element names, such as `x-bidi`, that already
+isolate their content in the rendered UI. Built-in `<bdi>`, `<code>`,
+`dir="ltr"`, and LRI/FSI/RLI controls are always recognized.
 `placeholderDialects` currently accepts `auto`, `braced`, `dotnet`, and `none`;
 ICU, printf, and i18next dialect parsing is scheduled for 0.7.
 `numeralPolicy` accepts `mixed` (default), `allow`, `western`, or
@@ -258,13 +265,25 @@ File integrity:
 | `KeyCollision` | error | Flattening or merging produces the same key twice |
 | `NonStringValue` | warning | A JSON value is not a string and cannot be linted |
 
-Inside strings that contain RTL script (Arabic, Hebrew, Persian, Urdu, ...):
+Inside strings that contain RTL script or bidi controls (Arabic, Hebrew,
+Persian, Urdu, ...):
 
 | Check | Severity | Meaning |
 | --- | --- | --- |
-| `UnisolatedLatin` | warning | A Latin run (brand, product name, code term) is not wrapped in bidi isolates, so it can render in the wrong order |
+| `UnisolatedLatin` | warning | A Latin run (brand, URL, email, path, code term, version, or file name) is not isolated, uses the wrong isolate direction, or crosses an isolate boundary |
 | `MixedNumerals` | warning | One string mixes Western digits (0-9) and Arabic-Indic digits (٠-٩), or violates the configured numeral policy |
-| `UnbalancedIsolates` | error | An isolate opener (FSI/LRI/RLI) without its PDI, or a stray PDI |
+| `UnbalancedIsolates` | error | An isolate opener (FSI/LRI/RLI) without its PDI, or a stray PDI; the finding points at the unmatched control |
+| `BidiControl` | error | A legacy LRE/RLE/LRO/RLO/PDF control is unbalanced, ignored inside an isolate, or exceeds the Unicode nesting limit |
+| `IsolateDepth` | warning | Isolates are nested deeper than the recommended 16 levels, or an isolate contains no visible content |
+| `NumberAdjacency` | warning | Numbers separated only by neutral characters resolve in a different visual order, so they can appear swapped |
+
+BidiLint uses the checked-in UAX #9 resolver to decide whether a run is
+actually at risk. It recognizes LRI/FSI/RLI..PDI, `<bdi>`, `<code>`,
+`dir="ltr"`, and configured `isolationWrappers` as mitigation. An RLI, an
+explicit `dir="rtl"` wrapper, or an auto-direction wrapper whose first strong
+character is RTL is reported as the wrong isolate direction. Markup tags,
+entities, and placeholders are masked before Latin-run and number analysis, so
+their identifiers do not become findings.
 
 ## Sample output
 
@@ -287,12 +306,12 @@ samples/storefront/ar.json:1:152  warning  MixedNumerals  products.count
 samples/storefront/ar.json:1:190  error    PlaceholderMismatch  products.discount
   Placeholders differ from en: expected [{0}, {1}], found [{0}].
   Base value. samples/storefront/en.json:1:210
-samples/storefront/ar.json:1:234  error    UnbalancedIsolates  promo.broken
-  1 bidi isolate opener(s) without a closing PDI; everything after the opener inherits the isolation.
-samples/storefront/ar.json:1:330  warning  UnisolatedLatin  skills.stack
-  Latin run "ASP.NET Core" is not wrapped in bidi isolates; it can render in the wrong order inside RTL text. Wrap it (FSI..PDI) or confirm the UI isolates it.
-samples/storefront/ar.json:1:330  warning  UnisolatedLatin  skills.stack
-  Latin run "C#" is not wrapped in bidi isolates; it can render in the wrong order inside RTL text. Wrap it (FSI..PDI) or confirm the UI isolates it.
+samples/storefront/ar.json:1:240  error    UnbalancedIsolates  promo.broken
+  Unclosed LRI (U+2066); it runs to the end of the value. Add a matching PDI (U+2069) after the isolated text.
+samples/storefront/ar.json:1:345  warning  UnisolatedLatin  skills.stack
+  Latin run "ASP.NET Core" is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir="ltr".
+samples/storefront/ar.json:1:360  warning  UnisolatedLatin  skills.stack
+  Latin run "C#" is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir="ltr".
 
 BidiLint 0.5.0: 2 file(s), base en, 18 entries — 4 error(s), 5 warning(s) in 72 ms.
 ```
@@ -318,17 +337,28 @@ Findings carry `severity`, `code`, `culture`, `key`, `message`, `file`,
 - File discovery reports unreadable paths and malformed files instead of
   silently skipping them. Every finding carries a file and, when available, a
   line and column.
-- The bidi checks are lint rules, not a full Unicode bidi algorithm (UAX #9)
-  implementation. They catch recurring mistakes; they do not prove a string
-  renders correctly in every context.
+- Bidi findings use the checked-in UAX #9 resolver for a single paragraph.
+  Values are resolved as one paragraph; multi-paragraph splitting and
+  line-level UI context are not modeled yet, and no CSS computed direction or
+  runtime DOM is available.
+- The markup scanner is a small quote-aware fragment scanner for `<bdi>`,
+  `<code>`, `dir`, and configured wrappers. It masks tag text but does not build
+  or validate a DOM. A wrapper applied only by the UI at render time is
+  invisible to BidiLint; declare `isolationStyle: "external"` only when that
+  wrapping is guaranteed for every render path, or list a wrapper that is
+  present in the value in `isolationWrappers`.
+- `BidiControl` covers legacy embeddings/overrides and isolate structure.
+  Balanced legacy controls and unpaired directional marks are reserved for the
+  remaining security slice. Isolate-depth findings use a recommended maximum of
+  16; the Unicode explicit-direction limit is 125.
+- `NumberAdjacency` only fires when neutral-separated numeric tokens actually
+  change visual order in the resolved paragraph. It can still warn when the
+  right-to-left reading order is intentional; isolate the sequence or adjust
+  the rule severity in that case.
 - With the default `numeralPolicy: "mixed"`, Western digits inside Arabic text
   are common (Egypt writes prices that way), so digits alone are not flagged.
   Only *mixing* two numeral systems in one string is. Use `western` or
   `arabic-indic` to enforce one system deliberately.
-- A Latin run wrapped by the UI at render time (for example a `<bdi>` element
-  or CSS `unicode-bidi: isolate`) is still flagged in the file. Declare
-  `isolationStyle: "external"` only when that wrapping is guaranteed for every
-  render path.
 - PO plural forms are flattened. Languages with different plural counts will
   report `ExtraKey` on their additional forms until the plural-aware rule
   engine lands in 0.7.

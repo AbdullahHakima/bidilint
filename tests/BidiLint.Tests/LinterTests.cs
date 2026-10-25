@@ -233,4 +233,96 @@ public class LinterTests
 
         Assert.Empty(result.Diagnostics);
     }
+
+    [Fact]
+    public void UnisolatedLatin_UsesTheExactJsonValueSpan()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "s": "Text" }""");
+        var ar = """{ "s": "نص ASP.NET هنا" }""";
+        workspace.Write("ar.json", ar);
+
+        var result = workspace.Lint();
+
+        var diagnostic = Assert.Single(
+            result.Diagnostics,
+            item => item.Code == DiagnosticCodes.UnisolatedLatin);
+        var rawStart = ar.IndexOf("ASP.NET", StringComparison.Ordinal);
+        Assert.Equal(rawStart, diagnostic.Span!.Value.Start.Offset);
+        Assert.Equal(rawStart + "ASP.NET".Length, diagnostic.Span.Value.End.Offset);
+    }
+
+    [Fact]
+    public void BidiControlFinding_UsesTheExactEscapedJsonSpan()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "s": "Text" }""");
+        var ar = """{ "s": "نص \u2066abc" }""";
+        workspace.Write("ar.json", ar);
+
+        var result = workspace.Lint();
+
+        var diagnostic = Assert.Single(
+            result.Diagnostics,
+            item => item.Code == DiagnosticCodes.UnbalancedIsolates);
+        var rawStart = ar.IndexOf("\\u2066", StringComparison.Ordinal);
+        Assert.Equal(rawStart, diagnostic.Span!.Value.Start.Offset);
+        Assert.Equal(6, diagnostic.Span.Value.End.Offset - rawStart);
+    }
+
+    [Fact]
+    public void BidiControlFinding_UsesTheExactEscapedAppleStringsSpan()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("Resources/en.lproj/Localizable.strings", """
+            "s" = "Text";
+            """);
+        var ar = """
+            "s" = "\U0646\U0635 \U202Eabc";
+            """;
+        workspace.Write("Resources/ar.lproj/Localizable.strings", ar);
+
+        var result = workspace.Lint();
+
+        var diagnostic = Assert.Single(
+            result.Diagnostics,
+            item => item.Code == DiagnosticCodes.BidiControl);
+        var rawStart = ar.IndexOf("\\U202E", StringComparison.Ordinal);
+        Assert.Equal(rawStart, diagnostic.Span!.Value.Start.Offset);
+        Assert.Equal(6, diagnostic.Span.Value.End.Offset - rawStart);
+    }
+
+    [Fact]
+    public void EnglishValueWithAnUnclosedIsolate_IsStillReported()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "s": "Text \u2066value" }""");
+
+        var result = workspace.Lint();
+
+        Assert.Contains(
+            result.Diagnostics,
+            item => item.Code == DiagnosticCodes.UnbalancedIsolates);
+    }
+
+    [Fact]
+    public void ConfiguredIsolationWrapper_IsAppliedByTheLinter()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "s": "Text" }""");
+        workspace.Write("ar.json", """{ "s": "نص <x-bidi>ASP.NET</x-bidi> هنا" }""");
+        var config = new LintConfig
+        {
+            IsolationWrappers = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+            {
+                "x-bidi",
+            },
+        };
+
+        var result = Linter.Lint(workspace.Load(), "en", config);
+
+        Assert.DoesNotContain(
+            result.Diagnostics,
+            item => item.Code == DiagnosticCodes.UnisolatedLatin);
+    }
 }

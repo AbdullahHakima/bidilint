@@ -76,12 +76,12 @@ place. The remaining gaps below drive the next phases.
 | --- | --- | --- |
 | Discovery | JSON culture files/directories, `.resx` sets, Android `res/values*`, Apple `.lproj`, gettext PO/POT, ARB; generated folders and symlink loops skipped | YAML/i18next variants and richer config discovery (1.1) |
 | Load failures | Malformed JSON/XML/PO/.strings, bad encodings, duplicate keys, and flattening collisions produce positioned diagnostics | Size limits, partial-parse recovery, and diagnostics for every ignored implicit candidate |
-| Provenance | Per-document entries with source spans; format-specific parser positions; comparison findings link to the base | Run-level spans for bidi findings, snippets, and edit ranges for fixes |
+| Provenance | Per-document entries with source spans; format-specific parser positions; comparison findings link to the base; bidi findings map decoded values back to source ranges where the format allows it | Snippets, SARIF, and edit ranges for fixes |
 | Text output | Relative `path:line:column`, code, key, message, related base location, quiet/color modes, suppression counts | Snippets, SARIF/GitHub annotations, output files, and MSBuild/JUnit formats |
 | Placeholders | Braced-token comparison against the base; configurable dialect gate | Escaped braces, ICU plural/select, printf, i18next, Angular, and format-aware validation (0.7) |
-| Bidi checks | Script-aware Arabic/Hebrew/other RTL detection; isolate balance and mixed numerals | Full UAX #9 handling, bidi overrides, Trojan Source controls, and run-level spans (0.6/0.8) |
+| Bidi checks | Script-aware RTL detection; UAX #9 resolved levels; span-aware isolation, control, depth, number-adjacency, and mixed-numeral rules; built-in mitigation recognition | Trojan Source and invisible-control security rules (0.6); run-level visual-order explanations and SARIF (0.8) |
 | Culture model | BCP-47 validation, explicit layouts, neutral-resource mapping to `--base`, config overrides and custom layout names | Base auto-detection when neutral resources are ambiguous, and custom tags (1.1) |
-| Config | `bidilint.json`/JSONC, published schema, discovery, `--config`, `--no-config`, `--init`, include/exclude, layouts/files, rules, terms, RTL cultures, output policy | Path-scoped rule severity overrides (0.8), YAML config |
+| Config | `bidilint.json`/JSONC, published schema, discovery, `--config`, `--no-config`, `--init`, include/exclude, layouts/files, rules, terms, RTL cultures, isolation wrappers, output policy | Path-scoped rule severity overrides (0.8), YAML config |
 | Baseline | SHA-256 baseline create/update/apply, stale-entry reporting, tamper validation | Security-rule restrictions and baseline merge workflows (0.6) |
 | Integration | Text and JSON schema 1.0 with file/range/format/resourceSet/related fields; config and suppressed findings in JSON | SARIF, GitHub annotations, output file, and editor fixes |
 | CI | PR matrix (Linux/macOS/Windows), build/test/format/pack/install smoke on both samples, Dependabot | Coverage gate, CodeQL, and release provenance/attestations |
@@ -383,14 +383,15 @@ order or handle Hebrew is a demo, not a tool.
       must not be treated as RTL.
 - [x] Run bidi rules on any value containing RTL script, including values in
       a nominally LTR base file.
-- [ ] Rewrite isolation rules with spans:
+- [x] Rewrite isolation rules with spans:
       - unisolated Latin runs, URLs, emails, paths, code identifiers, version
         strings, and file names;
       - Latin runs inside the wrong isolate type or crossing a boundary;
-      - legacy `LRE/RLE/LRO/RLO/PDF` and `LRM/RLM/ALM` balance/nesting;
+      - legacy `LRE/RLE/LRO/RLO/PDF` balance and isolate-carried nesting;
       - isolate depth and empty isolates;
       - number adjacency only where resolved levels show a real reorder risk.
-- [ ] Recognize mitigations already present in the value: FSI/LRI/RLI..PDI,
+      Directional-mark pairing remains in the security slice (#15).
+- [x] Recognize mitigations already present in the value: LRI/FSI/RLI..PDI,
       `<bdi>`, `dir="ltr"`, `<code>`, and configured wrappers. Do not flag
       content that is already isolated correctly.
 - [ ] Separate numeral systems: Western, Arabic-Indic (`0660–0669`),
@@ -613,10 +614,10 @@ until 1.0.
 | `UnisolatedLatin` | warning | shipped, rewritten 0.6 | LTR run not isolated in RTL text |
 | `MixedNumerals` | warning | shipped, extended 0.6 | More than one numeral system in one string |
 | `UnbalancedIsolates` | error | shipped, extended 0.6 | Unclosed/misordered isolates, stray PDI |
-| `BidiControl` | error | 0.6 | Unbalanced legacy embeddings/overrides, stray marks |
+| `BidiControl` | error | 0.6 | Unbalanced/ineffective legacy embeddings/overrides, overflow |
 | `BidiOverride` | error | 0.6 | Trojan Source-style override sequences |
 | `IsolateDepth` | warning | 0.6 | Excessive or empty isolate nesting |
-| `NumberAdjacency` | warning | 0.6 | A number resolves across a bidi boundary |
+| `NumberAdjacency` | warning | 0.6 | Adjacent numeric tokens resolve in a different visual order |
 | `PresentationForm` | warning | 0.6 | Legacy Arabic presentation forms |
 | `Normalization` | warning | 0.6 | Non-NFC values, mixed normalization |
 | `InvisibleCharacter` | warning | 0.6 | Mid-string BOM, suspicious invisibles |

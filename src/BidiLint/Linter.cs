@@ -1,7 +1,8 @@
 namespace BidiLint;
 
 // Structural checks compare each culture/resource-set against its base.
-// Bidi checks run on values that contain RTL script or belong to an RTL culture.
+// Bidi checks run on values that contain RTL script, bidi controls, or belong
+// to an RTL culture.
 public static class Linter
 {
     public static bool IsRtl(string culture) => CultureTag.IsRtl(culture);
@@ -186,23 +187,7 @@ public static class Linter
 
             var scan = BidiScanner.Scan(entry.Value);
             var rtlCulture = IsRtl(set.Culture, config);
-            if (!rtlCulture && !scan.HasRtlScript) continue;
-
-            if (scan.HasRtlScript && config.IsolationStyle == IsolationStyle.Isolate)
-            {
-                foreach (var run in scan.UnisolatedLatinRuns)
-                {
-                    if (IsAllowedLatin(run, set.Culture, config)) continue;
-                    result.Diagnostics.Add(new Diagnostic(
-                        DiagnosticCodes.UnisolatedLatin,
-                        DiagnosticSeverity.Warning,
-                        $"Latin run \"{run}\" is not wrapped in bidi isolates; it can render in the wrong order inside RTL text. Wrap it (FSI..PDI) or confirm the UI isolates it.",
-                        entry.Document.FilePath,
-                        entry.Span,
-                        set.Culture,
-                        entry.Key));
-                }
-            }
+            if (!rtlCulture && !scan.HasRtlScript && !scan.HasBidiControls) continue;
 
             if (ViolatesNumeralPolicy(scan, config.NumeralPolicy))
             {
@@ -216,39 +201,42 @@ public static class Linter
                     entry.Key));
             }
 
-            if (scan.UnclosedIsolates > 0)
+            var findings = IsolationAnalyzer.Analyze(
+                entry.Value,
+                set.Culture,
+                rtlCulture,
+                config,
+                scan);
+            foreach (var finding in findings)
             {
                 result.Diagnostics.Add(new Diagnostic(
-                    DiagnosticCodes.UnbalancedIsolates,
-                    DiagnosticSeverity.Error,
-                    $"{scan.UnclosedIsolates} bidi isolate opener(s) without a closing PDI; everything after the opener inherits the isolation.",
+                    finding.Code,
+                    finding.Severity,
+                    finding.Message,
                     entry.Document.FilePath,
-                    entry.Span,
-                    set.Culture,
-                    entry.Key));
-            }
-
-            if (scan.StrayClosers > 0)
-            {
-                result.Diagnostics.Add(new Diagnostic(
-                    DiagnosticCodes.UnbalancedIsolates,
-                    DiagnosticSeverity.Error,
-                    $"{scan.StrayClosers} PDI closer(s) without a matching isolate opener.",
-                    entry.Document.FilePath,
-                    entry.Span,
+                    MapSpan(entry, finding),
                     set.Culture,
                     entry.Key));
             }
         }
     }
 
-    private static bool IsAllowedLatin(string run, string culture, LintConfig config)
+    private static SourceSpan? MapSpan(LocaleEntry entry, ValueFinding finding)
     {
-        if (config.AllowLatin.Any(term => term.AppliesTo(culture) && term.Matches(run)))
-            return true;
+        if (entry.ValueMap is not null)
+        {
+            try
+            {
+                return entry.ValueMap.Map(finding.Start, finding.Length);
+            }
+            catch (ArgumentOutOfRangeException)
+            {
+                // Fall through to the whole value when a decoder and its map
+                // disagree; a broad span is better than a missing diagnostic.
+            }
+        }
 
-        return config.Rules.TryGetValue(DiagnosticCodes.UnisolatedLatin, out var rule) &&
-               rule.Allow.Any(term => string.Equals(term, run, StringComparison.Ordinal));
+        return entry.Span;
     }
 
     private static bool ViolatesNumeralPolicy(StringScan scan, NumeralPolicy policy) =>

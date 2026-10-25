@@ -53,6 +53,9 @@ public static class DiagnosticCodes
     public const string UnisolatedLatin = nameof(UnisolatedLatin);
     public const string MixedNumerals = nameof(MixedNumerals);
     public const string UnbalancedIsolates = nameof(UnbalancedIsolates);
+    public const string BidiControl = nameof(BidiControl);
+    public const string IsolateDepth = nameof(IsolateDepth);
+    public const string NumberAdjacency = nameof(NumberAdjacency);
     public const string BaseCultureMissing = nameof(BaseCultureMissing);
     public const string NoLocaleFiles = nameof(NoLocaleFiles);
     public const string StaleSuppression = nameof(StaleSuppression);

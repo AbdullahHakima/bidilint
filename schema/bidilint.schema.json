@@ -71,7 +71,10 @@
         "PlaceholderMismatch": { "$ref": "#/$defs/ruleSetting" },
         "UnisolatedLatin": { "$ref": "#/$defs/termRuleSetting" },
         "MixedNumerals": { "$ref": "#/$defs/ruleSetting" },
-        "UnbalancedIsolates": { "$ref": "#/$defs/ruleSetting" }
+        "UnbalancedIsolates": { "$ref": "#/$defs/ruleSetting" },
+        "BidiControl": { "$ref": "#/$defs/ruleSetting" },
+        "IsolateDepth": { "$ref": "#/$defs/ruleSetting" },
+        "NumberAdjacency": { "$ref": "#/$defs/ruleSetting" }
       }
     },
     "ignore": {
@@ -93,6 +96,15 @@
       "type": "array",
       "items": { "type": "string", "minLength": 1 },
       "description": "Additional BCP-47 cultures that should be treated as right-to-left."
+    },
+    "isolationWrappers": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^[A-Za-z][A-Za-z0-9._:-]*$"
+      },
+      "description": "Additional HTML/XML element names that isolate their content for bidi purposes, such as x-bidi. Built-in bdi and code, dir=\"ltr\", and LRI/FSI/RLI controls are always recognized."
     },
     "placeholderDialects": {
       "type": "array",
@@ -189,7 +201,10 @@
             "PlaceholderMismatch",
             "UnisolatedLatin",
             "MixedNumerals",
-            "UnbalancedIsolates"
+            "UnbalancedIsolates",
+            "BidiControl",
+            "IsolateDepth",
+            "NumberAdjacency"
           ]
         },
         "path": {

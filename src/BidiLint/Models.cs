@@ -30,6 +30,10 @@ public sealed class LocaleEntry
     public required LocaleDocument Document { get; init; }
     public SourceSpan? Span { get; init; }
     public SourceSpan? KeySpan { get; init; }
+
+    // Optional mapping from decoded value offsets to the raw source token.
+    // Adapters that can provide it get sub-value diagnostic ranges.
+    internal ValueSourceMap? ValueMap { get; init; }
 }
 
 public sealed record SuppressedDiagnostic(

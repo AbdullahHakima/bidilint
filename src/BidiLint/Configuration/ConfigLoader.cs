@@ -35,8 +35,9 @@ internal static class ConfigLoader
     private static readonly HashSet<string> RootKeys = new(StringComparer.Ordinal)
     {
         "$schema", "baseCulture", "include", "exclude", "layouts", "files",
-        "rules", "ignore", "allowLatin", "rtlCultures", "placeholderDialects",
-        "numeralPolicy", "isolationStyle", "baseline", "failOn", "output",
+        "rules", "ignore", "allowLatin", "rtlCultures", "isolationWrappers",
+        "placeholderDialects", "numeralPolicy", "isolationStyle", "baseline",
+        "failOn", "output",
     };
 
     public static IReadOnlySet<string> RootPropertyNames => RootKeys;
@@ -211,6 +212,7 @@ internal static class ConfigLoader
             // { "term": "BidiLint", "match": "exact", "reason": "Brand name." }
           ],
           "rtlCultures": [],
+          "isolationWrappers": [],
           "placeholderDialects": ["auto"],
           "numeralPolicy": "mixed",
           "isolationStyle": "isolate",
@@ -266,6 +268,7 @@ internal static class ConfigLoader
         var ignore = ReadIgnore(properties, errors);
         var allowLatin = ReadAllowLatin(properties, errors);
         var rtlCultures = ReadRtlCultures(properties, errors);
+        var isolationWrappers = ReadIsolationWrappers(properties, errors);
         var placeholderDialect = ReadPlaceholderDialect(properties, errors);
         var numeralPolicy = ReadNumeralPolicy(properties, errors);
         var isolationStyle = ReadIsolationStyle(properties, errors);
@@ -292,6 +295,7 @@ internal static class ConfigLoader
             Ignore = ignore,
             AllowLatin = allowLatin,
             RtlCultures = rtlCultures,
+            IsolationWrappers = isolationWrappers,
             PlaceholderDialect = placeholderDialect,
             NumeralPolicy = numeralPolicy,
             IsolationStyle = isolationStyle,
@@ -729,6 +733,38 @@ internal static class ConfigLoader
         }
 
         return cultures;
+    }
+
+    private static HashSet<string> ReadIsolationWrappers(
+        Dictionary<string, JsonElement> properties,
+        List<string> errors)
+    {
+        var wrappers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var value in ReadStringArray(properties, "isolationWrappers", errors))
+        {
+            if (!IsValidTagName(value))
+            {
+                errors.Add(
+                    $"isolationWrappers contains \"{value}\"; use an element name such as x-bidi or span, without angle brackets.");
+                continue;
+            }
+
+            wrappers.Add(value);
+        }
+
+        return wrappers;
+    }
+
+    private static bool IsValidTagName(string value)
+    {
+        if (value.Length == 0 || !char.IsAsciiLetter(value[0])) return false;
+        foreach (var c in value)
+        {
+            if (!char.IsAsciiLetterOrDigit(c) && c is not ('-' or '_' or '.' or ':'))
+                return false;
+        }
+
+        return true;
     }
 
     private static PlaceholderDialect ReadPlaceholderDialect(
