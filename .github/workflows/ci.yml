@@ -121,6 +121,11 @@ jobs:
           report = json.loads(Path("resx-report.json").read_text(encoding="utf-8"))
           assert report["tool"] == "BidiLint", report
           assert report["errors"] == 1, report
-          assert report["warnings"] == 1, report
+          assert report["warnings"] == 2, report
+          codes = {finding["code"] for finding in report["findings"]}
+          assert "Tatweel" in codes, report
+          unisolated = next(f for f in report["findings"] if f["code"] == "UnisolatedLatin")
+          assert unisolated["bidi"]["logical"] == "ASP.NET Core", unisolated
+          assert unisolated["bidi"]["paragraphLevel"] == 1, unisolated
           print(f"resx report version={report['version']} errors={report['errors']} warnings={report['warnings']}")
           PY
