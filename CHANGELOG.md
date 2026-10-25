@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.6.1] - 2026-10-26
+
+### Fixed
+
+- Fixed false `KeyCollision` findings when culture-named JSON files live in
+  different directories. `JsonFileAdapter` now uses the containing directory
+  as the logical resource set instead of the global name `json`, so
+  `apps/files/l10n/ar.json` and `apps/settings/l10n/ar.json` are compared
+  separately. Root-level `en.json` / `ar.json` use the resource set `.`.
+
+### Tests
+
+- Added regression coverage for separate culture-named JSON directories and
+  for the root-level layout.
+
+### Changed
+
+- The JSON report's `resourceSet` value for culture-named files is now the
+  relative containing directory rather than `json`. Explicit `files` mappings
+  are unchanged. Consumers that matched on the old constant should switch to
+  the directory or an explicit mapping.
+- Added a [field-validation record](docs/field-validation.md) for the
+  Nextcloud RTL corpus. The run found no crashes or malformed files; the
+  plural-branch placeholder comparison and other 0.7 placeholder work remain
+  explicitly out of scope.
+
 ## [0.6.0] - 2026-10-26
 
 ### Added

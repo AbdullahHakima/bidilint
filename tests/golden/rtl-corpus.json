@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "tool": "BidiLint",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "unicodeVersion": "17.0.0",
   "baseCulture": "en",
   "files": [

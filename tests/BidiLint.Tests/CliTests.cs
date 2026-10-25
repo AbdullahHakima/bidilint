@@ -140,14 +140,12 @@ public class CliTests
     public void MultiplePaths_AreCombined()
     {
         using var workspace = new TestWorkspace();
-        var baseDirectory = Path.Combine(workspace.Root, "base");
-        var targetDirectory = Path.Combine(workspace.Root, "target");
-        Directory.CreateDirectory(baseDirectory);
-        Directory.CreateDirectory(targetDirectory);
-        File.WriteAllText(Path.Combine(baseDirectory, "en.json"), """{ "a": "A" }""");
-        File.WriteAllText(Path.Combine(targetDirectory, "ar.json"), """{ "a": "أ" }""");
+        workspace.Write("locales/en.json", """{ "a": "A" }""");
+        workspace.Write("locales/ar.json", """{ "a": "أ" }""");
 
-        var (code, _, _) = Run(["base", "target"], workspace);
+        var (code, _, _) = Run(
+            ["locales/en.json", "locales/ar.json"],
+            workspace);
 
         Assert.Equal(ExitCodes.Ok, code);
     }

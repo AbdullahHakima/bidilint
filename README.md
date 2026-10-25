@@ -265,8 +265,14 @@ compared against its own base.
 
 A resource set is the relative path with the culture segment removed:
 `locales/en/translation.json` and `locales/ar/translation.json` both belong to
-`locales/translation.json`. A base must exist for every set; otherwise the
-finding says which set cannot be compared.
+`locales/translation.json`. For culture-named files the culture is the file
+name, so the containing directory is the set: `apps/files/l10n/en.json` and
+`apps/files/l10n/ar.json` belong to `apps/files/l10n`. Root-level `en.json`
+and `ar.json` belong to `.`. Directories are intentionally separate, even when
+they contain the same keys; map a base and a translation that live in different
+directories through `files` with the same `resourceSet` when they should be
+compared. A base must exist for every set; otherwise the finding says which set
+cannot be compared.
 
 ## What it checks
 
@@ -370,7 +376,7 @@ samples/storefront/ar.json:1:360  warning  UnisolatedLatin  skills.stack
   Latin run "C#" is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir="ltr".
   logical: "C#"; paragraph level 1 (RTL), run levels 2 (LTR), 1 (RTL)
 
-BidiLint 0.6.0: 2 file(s), base en, 18 entries — 4 error(s), 5 warning(s) in 72 ms.
+BidiLint 0.6.1: 2 file(s), base en, 18 entries — 4 error(s), 5 warning(s) in 72 ms.
 ```
 
 Elapsed time varies between runs.
@@ -432,6 +438,10 @@ characters for display. `range` remains the source span.
 - PO plural forms are flattened. Languages with different plural counts will
   report `ExtraKey` on their additional forms until the plural-aware rule
   engine lands in 0.7.
+- JSON plural arrays are flattened into `key[0]`, `key[1]`, and so on and
+  compared branch by branch. A singular branch that legitimately omits a count
+  placeholder can still report `PlaceholderMismatch` until the plural-aware
+  comparison lands in 0.7.
 - ARB ICU plurals are read correctly as strings, but placeholder comparison is
   still the simple braced-token scanner; ICU-aware placeholders are scheduled
   for 0.7.
