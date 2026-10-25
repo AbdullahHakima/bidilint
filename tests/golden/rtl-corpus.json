@@ -1,0 +1,580 @@
+{
+  "schemaVersion": "1.0",
+  "tool": "BidiLint",
+  "version": "0.6.0",
+  "unicodeVersion": "17.0.0",
+  "baseCulture": "en",
+  "files": [
+    {
+      "culture": "en",
+      "path": "hebrew/locales/en/messages.json",
+      "keys": 6,
+      "format": "json",
+      "resourceSet": "hebrew/locales/messages.json"
+    },
+    {
+      "culture": "he",
+      "path": "hebrew/locales/he/messages.json",
+      "keys": 6,
+      "format": "json",
+      "resourceSet": "hebrew/locales/messages.json"
+    },
+    {
+      "culture": "en",
+      "path": "persian/locales/en/messages.json",
+      "keys": 6,
+      "format": "json",
+      "resourceSet": "persian/locales/messages.json"
+    },
+    {
+      "culture": "fa",
+      "path": "persian/locales/fa/messages.json",
+      "keys": 6,
+      "format": "json",
+      "resourceSet": "persian/locales/messages.json"
+    },
+    {
+      "culture": "ar",
+      "path": "rules/locales/ar/messages.json",
+      "keys": 26,
+      "format": "json",
+      "resourceSet": "rules/locales/messages.json"
+    },
+    {
+      "culture": "en",
+      "path": "rules/locales/en/messages.json",
+      "keys": 26,
+      "format": "json",
+      "resourceSet": "rules/locales/messages.json"
+    },
+    {
+      "culture": "en",
+      "path": "urdu/locales/en/messages.json",
+      "keys": 6,
+      "format": "json",
+      "resourceSet": "urdu/locales/messages.json"
+    },
+    {
+      "culture": "ur",
+      "path": "urdu/locales/ur/messages.json",
+      "keys": 6,
+      "format": "json",
+      "resourceSet": "urdu/locales/messages.json"
+    }
+  ],
+  "keyCount": 88,
+  "errors": 8,
+  "warnings": 14,
+  "infos": 0,
+  "suppressed": 0,
+  "elapsedMilliseconds": 0,
+  "findings": [
+    {
+      "severity": "warning",
+      "code": "UnisolatedLatin",
+      "culture": "he",
+      "key": "hebrew.latin.positive",
+      "message": "Latin run \u0022BidiLint\u0022 is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, \u003Cbdi\u003E, \u003Ccode\u003E, or dir=\u0022ltr\u0022.",
+      "file": "hebrew/locales/he/messages.json",
+      "range": {
+        "start": {
+          "line": 2,
+          "column": 37
+        },
+        "end": {
+          "line": 2,
+          "column": 45
+        }
+      },
+      "bidi": {
+        "logical": "BidiLint",
+        "paragraphLevel": 1,
+        "levels": [
+          {
+            "start": 0,
+            "length": 8,
+            "level": 2
+          }
+        ]
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "MixedNumerals",
+      "culture": "he",
+      "key": "hebrew.numerals.positive",
+      "message": "Found Western digits (0-9) and Arabic-Indic digits (\u0660-\u0669) in one string; pick one numeral system per string.",
+      "file": "hebrew/locales/he/messages.json",
+      "range": {
+        "start": {
+          "line": 4,
+          "column": 38
+        },
+        "end": {
+          "line": 4,
+          "column": 45
+        }
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "NumberAdjacency",
+      "culture": "he",
+      "key": "hebrew.numbers.positive",
+      "message": "Numbers 1, 2, 3 are separated only by neutral characters and resolve visually as 3, 2, 1 from left to right in this RTL paragraph. Wrap the sequence in an LRI/FSI if the logical order must stay visible.",
+      "file": "hebrew/locales/he/messages.json",
+      "range": {
+        "start": {
+          "line": 6,
+          "column": 36
+        },
+        "end": {
+          "line": 6,
+          "column": 41
+        }
+      },
+      "bidi": {
+        "logical": "1 2 3",
+        "paragraphLevel": 1,
+        "levels": [
+          {
+            "start": 0,
+            "length": 1,
+            "level": 2
+          },
+          {
+            "start": 2,
+            "length": 1,
+            "level": 2
+          },
+          {
+            "start": 4,
+            "length": 1,
+            "level": 2
+          }
+        ],
+        "visual": "3, 2, 1"
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "UnisolatedLatin",
+      "culture": "fa",
+      "key": "persian.latin.positive",
+      "message": "Latin run \u0022BidiLint\u0022 is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, \u003Cbdi\u003E, \u003Ccode\u003E, or dir=\u0022ltr\u0022.",
+      "file": "persian/locales/fa/messages.json",
+      "range": {
+        "start": {
+          "line": 2,
+          "column": 43
+        },
+        "end": {
+          "line": 2,
+          "column": 51
+        }
+      },
+      "bidi": {
+        "logical": "BidiLint",
+        "paragraphLevel": 1,
+        "levels": [
+          {
+            "start": 0,
+            "length": 8,
+            "level": 2
+          }
+        ]
+      }
+    },
+    {
+      "severity": "error",
+      "code": "InvisibleControl",
+      "culture": "fa",
+      "key": "persian.joiner.positive",
+      "message": "zero-width non-joiner (U\u002B200C) is not next to joining-script text; remove it or place it where the shaping context requires it.",
+      "file": "persian/locales/fa/messages.json",
+      "range": {
+        "start": {
+          "line": 4,
+          "column": 35
+        },
+        "end": {
+          "line": 4,
+          "column": 41
+        }
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "MixedNumerals",
+      "culture": "fa",
+      "key": "persian.numerals.positive",
+      "message": "Found Western digits (0-9) and Extended Arabic-Indic digits (\u06F0-\u06F9) in one string; pick one numeral system per string.",
+      "file": "persian/locales/fa/messages.json",
+      "range": {
+        "start": {
+          "line": 6,
+          "column": 38
+        },
+        "end": {
+          "line": 6,
+          "column": 45
+        }
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "UnisolatedLatin",
+      "culture": "ar",
+      "key": "unisolatedLatin.positive",
+      "message": "Latin run \u0022BidiLint\u0022 is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, \u003Cbdi\u003E, \u003Ccode\u003E, or dir=\u0022ltr\u0022.",
+      "file": "rules/locales/ar/messages.json",
+      "range": {
+        "start": {
+          "line": 2,
+          "column": 46
+        },
+        "end": {
+          "line": 2,
+          "column": 54
+        }
+      },
+      "bidi": {
+        "logical": "BidiLint",
+        "paragraphLevel": 1,
+        "levels": [
+          {
+            "start": 0,
+            "length": 8,
+            "level": 2
+          }
+        ]
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "MixedNumerals",
+      "culture": "ar",
+      "key": "mixedNumerals.positive",
+      "message": "Found Western digits (0-9) and Arabic-Indic digits (\u0660-\u0669) in one string; pick one numeral system per string.",
+      "file": "rules/locales/ar/messages.json",
+      "range": {
+        "start": {
+          "line": 4,
+          "column": 35
+        },
+        "end": {
+          "line": 4,
+          "column": 42
+        }
+      }
+    },
+    {
+      "severity": "error",
+      "code": "UnbalancedIsolates",
+      "culture": "ar",
+      "key": "unbalancedIsolate.positive",
+      "message": "Unclosed LRI (U\u002B2066); it runs to the end of the value. Add a matching PDI (U\u002B2069) after the isolated text.",
+      "file": "rules/locales/ar/messages.json",
+      "range": {
+        "start": {
+          "line": 6,
+          "column": 37
+        },
+        "end": {
+          "line": 6,
+          "column": 43
+        }
+      }
+    },
+    {
+      "severity": "error",
+      "code": "BidiControl",
+      "culture": "ar",
+      "key": "legacyControl.positive",
+      "message": "Unclosed LRE (U\u002B202A); it runs to the end of the value and can reorder later text. Add a matching PDF (U\u002B202C) or replace the embedding with LRI..PDI.",
+      "file": "rules/locales/ar/messages.json",
+      "range": {
+        "start": {
+          "line": 8,
+          "column": 33
+        },
+        "end": {
+          "line": 8,
+          "column": 39
+        }
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "IsolateDepth",
+      "culture": "ar",
+      "key": "isolateDepth.positive",
+      "message": "Isolate nesting reached 17 levels; the recommended maximum is 16. Flatten the markup or reuse an outer isolate.",
+      "file": "rules/locales/ar/messages.json",
+      "range": {
+        "start": {
+          "line": 10,
+          "column": 128
+        },
+        "end": {
+          "line": 10,
+          "column": 134
+        }
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "NumberAdjacency",
+      "culture": "ar",
+      "key": "numberAdjacency.positive",
+      "message": "Numbers 1, 2, 3 are separated only by neutral characters and resolve visually as 3, 2, 1 from left to right in this RTL paragraph. Wrap the sequence in an LRI/FSI if the logical order must stay visible.",
+      "file": "rules/locales/ar/messages.json",
+      "range": {
+        "start": {
+          "line": 12,
+          "column": 35
+        },
+        "end": {
+          "line": 12,
+          "column": 40
+        }
+      },
+      "bidi": {
+        "logical": "1 2 3",
+        "paragraphLevel": 1,
+        "levels": [
+          {
+            "start": 0,
+            "length": 1,
+            "level": 2
+          },
+          {
+            "start": 2,
+            "length": 1,
+            "level": 2
+          },
+          {
+            "start": 4,
+            "length": 1,
+            "level": 2
+          }
+        ],
+        "visual": "3, 2, 1"
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "PresentationForm",
+      "culture": "ar",
+      "key": "presentationForm.positive",
+      "message": "Arabic presentation form U\u002BFEFB (\uFEFB) is a compatibility character. Replace it with standard Arabic letters so normalization, search, and shaping stay consistent.",
+      "file": "rules/locales/ar/messages.json",
+      "range": {
+        "start": {
+          "line": 14,
+          "column": 36
+        },
+        "end": {
+          "line": 14,
+          "column": 42
+        }
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "Normalization",
+      "culture": "ar",
+      "key": "normalization.positive",
+      "message": "Text element \u0022e\\u{0301}\u0022 is not Unicode NFC; the normalized form is \u0022\u00E9\u0022. Store normalized text for stable search, comparison, and rendering.",
+      "file": "rules/locales/ar/messages.json",
+      "range": {
+        "start": {
+          "line": 16,
+          "column": 33
+        },
+        "end": {
+          "line": 16,
+          "column": 40
+        }
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "Tatweel",
+      "culture": "ar",
+      "key": "tatweel.positive",
+      "message": "Arabic tatweel (U\u002B0640) is present; it elongates glyphs but is not a letter. Remove it unless the kashida is intentional, or lower rules.Tatweel.",
+      "file": "rules/locales/ar/messages.json",
+      "range": {
+        "start": {
+          "line": 18,
+          "column": 27
+        },
+        "end": {
+          "line": 18,
+          "column": 33
+        }
+      }
+    },
+    {
+      "severity": "error",
+      "code": "BidiOverride",
+      "culture": "ar",
+      "key": "security.override.positive",
+      "message": "Bidi override RLO (U\u002B202E) can reorder or hide text (Trojan Source). Remove it or replace it with an isolate (LRI/RLI/FSI..PDI).",
+      "file": "rules/locales/ar/messages.json",
+      "range": {
+        "start": {
+          "line": 20,
+          "column": 37
+        },
+        "end": {
+          "line": 20,
+          "column": 43
+        }
+      }
+    },
+    {
+      "severity": "error",
+      "code": "InvisibleControl",
+      "culture": "ar",
+      "key": "security.bom.positive",
+      "message": "Byte order mark (U\u002BFEFF) appears in visible text; remove it. BOMs are invisible and can hide content or break search and comparison.",
+      "file": "rules/locales/ar/messages.json",
+      "range": {
+        "start": {
+          "line": 22,
+          "column": 32
+        },
+        "end": {
+          "line": 22,
+          "column": 38
+        }
+      }
+    },
+    {
+      "severity": "error",
+      "code": "InvisibleControl",
+      "culture": "ar",
+      "key": "security.joiner.positive",
+      "message": "zero-width joiner (U\u002B200D) is not next to joining-script text or an emoji sequence; remove it or place it where the shaping context requires it.",
+      "file": "rules/locales/ar/messages.json",
+      "range": {
+        "start": {
+          "line": 24,
+          "column": 33
+        },
+        "end": {
+          "line": 24,
+          "column": 39
+        }
+      }
+    },
+    {
+      "severity": "error",
+      "code": "InvisibleControl",
+      "culture": "ar",
+      "key": "security.mark.positive",
+      "message": "left-to-right mark (U\u002B200E) does not change the resolved order of any visible text; remove it or place it where it controls a neutral boundary.",
+      "file": "rules/locales/ar/messages.json",
+      "range": {
+        "start": {
+          "line": 26,
+          "column": 33
+        },
+        "end": {
+          "line": 26,
+          "column": 39
+        }
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "UnisolatedLatin",
+      "culture": "ur",
+      "key": "urdu.latin.positive",
+      "message": "Latin run \u0022BidiLint\u0022 is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, \u003Cbdi\u003E, \u003Ccode\u003E, or dir=\u0022ltr\u0022.",
+      "file": "urdu/locales/ur/messages.json",
+      "range": {
+        "start": {
+          "line": 2,
+          "column": 27
+        },
+        "end": {
+          "line": 2,
+          "column": 35
+        }
+      },
+      "bidi": {
+        "logical": "BidiLint",
+        "paragraphLevel": 1,
+        "levels": [
+          {
+            "start": 0,
+            "length": 8,
+            "level": 2
+          }
+        ]
+      }
+    },
+    {
+      "severity": "error",
+      "code": "InvisibleControl",
+      "culture": "ur",
+      "key": "urdu.joiner.positive",
+      "message": "zero-width joiner (U\u002B200D) is not next to joining-script text or an emoji sequence; remove it or place it where the shaping context requires it.",
+      "file": "urdu/locales/ur/messages.json",
+      "range": {
+        "start": {
+          "line": 4,
+          "column": 32
+        },
+        "end": {
+          "line": 4,
+          "column": 38
+        }
+      }
+    },
+    {
+      "severity": "warning",
+      "code": "NumberAdjacency",
+      "culture": "ur",
+      "key": "urdu.numbers.positive",
+      "message": "Numbers 1, 2, 3 are separated only by neutral characters and resolve visually as 3, 2, 1 from left to right in this RTL paragraph. Wrap the sequence in an LRI/FSI if the logical order must stay visible.",
+      "file": "urdu/locales/ur/messages.json",
+      "range": {
+        "start": {
+          "line": 6,
+          "column": 34
+        },
+        "end": {
+          "line": 6,
+          "column": 39
+        }
+      },
+      "bidi": {
+        "logical": "1 2 3",
+        "paragraphLevel": 1,
+        "levels": [
+          {
+            "start": 0,
+            "length": 1,
+            "level": 2
+          },
+          {
+            "start": 2,
+            "length": 1,
+            "level": 2
+          },
+          {
+            "start": 4,
+            "length": 1,
+            "level": 2
+          }
+        ],
+        "visual": "3, 2, 1"
+      }
+    }
+  ],
+  "suppressedFindings": []
+}

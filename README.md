@@ -330,6 +330,11 @@ entities, and placeholders are masked before Latin-run, number, numeral,
 normalization, and security analysis, so their identifiers do not become
 findings.
 
+The resolver passes the full Unicode 17.0.0 UAX #9 `BidiTest` and
+`BidiCharacterTest` suites. The documented conformance subset and the
+exclusions (paragraph splitting, line layout, rendering, and higher-level
+protocols) are in [docs/conformance.md](docs/conformance.md).
+
 For `UnisolatedLatin` and `NumberAdjacency`, the report also explains the
 resolved order. Text output includes the escaped logical run, the paragraph
 level, and the resolved level runs. JSON adds a `bidi` object with the same
@@ -365,7 +370,7 @@ samples/storefront/ar.json:1:360  warning  UnisolatedLatin  skills.stack
   Latin run "C#" is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir="ltr".
   logical: "C#"; paragraph level 1 (RTL), run levels 2 (LTR), 1 (RTL)
 
-BidiLint 0.5.0: 2 file(s), base en, 18 entries — 4 error(s), 5 warning(s) in 72 ms.
+BidiLint 0.6.0: 2 file(s), base en, 18 entries — 4 error(s), 5 warning(s) in 72 ms.
 ```
 
 Elapsed time varies between runs.
@@ -438,13 +443,14 @@ characters for display. `range` remains the source span.
 - JSON and `.resx` currently have no implicit cross-format merge. Use an
   explicit `files` mapping when formats must be paired.
 - No baseline or ignore can hide load, format, or configuration diagnostics.
-  Security-rule baseline restrictions are part of the 0.6 work.
+  Security findings can only be waived by a targeted, reasoned `ignore` entry
+  that names the rule; they are never written to a baseline.
 
 ## Roadmap
 
-The detailed plan from the current 0.5 foundation to a production-ready 1.0 —
-the bidi engine and security rules, SARIF, safe auto-fix, and release gates —
-lives in [ROADMAP.md](ROADMAP.md).
+The detailed plan from the current 0.6 foundation to a production-ready 1.0 —
+the placeholder AST, SARIF, safe auto-fix, and release gates — lives in
+[ROADMAP.md](ROADMAP.md).
 
 ## Development
 
@@ -456,7 +462,8 @@ dotnet pack  src/BidiLint/BidiLint.csproj -c Release
 ```
 
 CI runs build, tests, formatting, packaging, docs/schema synchronization tests,
-and an install-and-run smoke test on the sample repositories.
+the Unicode conformance suite, the RTL corpus golden outputs, the 100k-entry
+benchmark, and an install-and-run smoke test on the sample repositories.
 
 ## License
 

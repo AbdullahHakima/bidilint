@@ -1,0 +1,8 @@
+{
+  "urdu.latin.positive": "Built with BidiLint",
+  "urdu.latin.benign": "Built with BidiLint",
+  "urdu.joiner.positive": "Joiner control",
+  "urdu.joiner.benign": "Joiner context",
+  "urdu.numbers.positive": "Numbers 1 2 3",
+  "urdu.numbers.benign": "Numbers 1 2 3"
+}

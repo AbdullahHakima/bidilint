@@ -59,6 +59,18 @@ public class DocumentationTests
         Assert.Equal(catalogRules, schemaRules);
     }
 
+    [Fact]
+    public void ConformanceDocumentationRecordsTheSuiteAndExclusions()
+    {
+        var text = File.ReadAllText(
+            Path.Combine(TestPaths.RepositoryRoot, "docs", "conformance.md"));
+
+        Assert.Contains("770,241", text, StringComparison.Ordinal);
+        Assert.Contains("91,707", text, StringComparison.Ordinal);
+        Assert.Contains("## Exclusions", text, StringComparison.Ordinal);
+        Assert.Contains("## Implemented scope", text, StringComparison.Ordinal);
+    }
+
     private static string Normalize(string value) =>
         value.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd();
 }

@@ -1,0 +1,8 @@
+{
+  "urdu.latin.positive": "BidiLint کے ساتھ بنایا گیا",
+  "urdu.latin.benign": "\u2066BidiLint\u2069 کے ساتھ بنایا گیا",
+  "urdu.joiner.positive": "متن \u200D",
+  "urdu.joiner.benign": "می\u200Cخواہم",
+  "urdu.numbers.positive": "نمبر 1 2 3 یہاں",
+  "urdu.numbers.benign": "نمبر \u20661 2 3\u2069 یہاں"
+}
