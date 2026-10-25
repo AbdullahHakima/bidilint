@@ -4,8 +4,8 @@ using System.Text.RegularExpressions;
 namespace BidiLint;
 
 // Character-level facts about one string, computed once and shared by the
-// checks. This is not a UAX #9 implementation yet; it identifies the scripts
-// and control characters that the lint rules need.
+// checks. It identifies scripts and control characters; BidiResolver owns
+// UAX #9 levels and visual ordering.
 public sealed record StringScan
 {
     public bool HasArabic { get; init; }
@@ -13,6 +13,8 @@ public sealed record StringScan
     public bool HasRtlScript { get; init; }
     public bool HasWesternDigits { get; init; }
     public bool HasArabicIndicDigits { get; init; }
+    public bool HasBidiControls { get; init; }
+    public bool HasDirectionalMarks { get; init; }
 
     // Latin runs that are NOT inside a bidi isolate span (FSI/LRI/RLI .. PDI).
     public List<string> UnisolatedLatinRuns { get; } = new();
@@ -28,6 +30,42 @@ public static class BidiScanner
     public const char Rli = '\u2067';
     public const char Fsi = '\u2068';
     public const char Pdi = '\u2069';
+
+    public const char Lre = '\u202A';
+    public const char Rle = '\u202B';
+    public const char Pdf = '\u202C';
+    public const char Lro = '\u202D';
+    public const char Rlo = '\u202E';
+
+    public const char Lrm = '\u200E';
+    public const char Rlm = '\u200F';
+    public const char Alm = '\u061C';
+
+    public static bool IsIsolateControl(char c) => c is >= Lri and <= Pdi;
+
+    public static bool IsLegacyControl(char c) => c is >= Lre and <= Rlo;
+
+    public static bool IsDirectionalMark(char c) => c is Lrm or Rlm or Alm;
+
+    public static bool IsBidiControl(char c) =>
+        IsIsolateControl(c) || IsLegacyControl(c) || IsDirectionalMark(c);
+
+    public static string ControlName(char c) => c switch
+    {
+        Lri => "LRI",
+        Rli => "RLI",
+        Fsi => "FSI",
+        Pdi => "PDI",
+        Lre => "LRE",
+        Rle => "RLE",
+        Pdf => "PDF",
+        Lro => "LRO",
+        Rlo => "RLO",
+        Lrm => "LRM",
+        Rlm => "RLM",
+        Alm => "ALM",
+        _ => "bidi control",
+    };
 
     // A Latin run: brand-like tokens ("ASP.NET Core", "C#", ".NET", "Visual Studio").
     // Tokens join across a dot or a single space when another token follows, so a
@@ -62,6 +100,8 @@ public static class BidiScanner
         var hasArabic = false;
         var hasHebrew = false;
         var hasRtlScript = false;
+        var hasBidiControls = false;
+        var hasDirectionalMarks = false;
         foreach (var scalar in UnicodeScalars.Enumerate(value))
         {
             if (!UnicodeInfo.IsRtlCharacter(scalar.Value)) continue;
@@ -72,6 +112,13 @@ public static class BidiScanner
             if (script == UnicodeScript.Hebrew) hasHebrew = true;
         }
 
+        for (var i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (IsBidiControl(c)) hasBidiControls = true;
+            if (IsDirectionalMark(c)) hasDirectionalMarks = true;
+        }
+
         var scan = new StringScan
         {
             HasArabic = hasArabic,
@@ -80,6 +127,8 @@ public static class BidiScanner
             HasWesternDigits = value.Any(c => c is >= '0' and <= '9'),
             HasArabicIndicDigits = value.Any(c =>
                 (c >= '\u0660' && c <= '\u0669') || (c >= '\u06F0' && c <= '\u06F9')),
+            HasBidiControls = hasBidiControls,
+            HasDirectionalMarks = hasDirectionalMarks,
         };
 
         // Track isolate depth per character index, so the caller can tell whether
@@ -120,4 +169,7 @@ public static class BidiScanner
             .Select(m => m.Value)
             .OrderBy(p => p, StringComparer.Ordinal)
             .ToList();
+
+    internal static IEnumerable<(int Start, int Length)> PlaceholderSpans(string value) =>
+        Placeholder.Matches(value).Select(m => (m.Index, m.Length));
 }

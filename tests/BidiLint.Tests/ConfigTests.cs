@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Xunit;
 
 namespace BidiLint.Tests;
@@ -245,5 +246,85 @@ public class ConfigTests
 
         Assert.Single(resolution.Errors);
         Assert.Contains("only supported by rules that match Latin terms", resolution.Errors[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void IsolationWrappersAreReadCaseInsensitively()
+    {
+        using var workspace = new TestWorkspace();
+        var configPath = workspace.Write("bidilint.json", """
+            { "isolationWrappers": ["x-bidi", "X-BIDI", "app-ltr"] }
+            """);
+
+        var resolution = ConfigLoader.Load(configPath);
+
+        Assert.Empty(resolution.Errors);
+        Assert.Equal(2, resolution.Config.IsolationWrappers.Count);
+        Assert.Contains("x-bidi", resolution.Config.IsolationWrappers);
+        Assert.Contains("app-ltr", resolution.Config.IsolationWrappers);
+    }
+
+    [Theory]
+    [InlineData("<x-bidi>")]
+    [InlineData("x bidi")]
+    [InlineData("1-bidi")]
+    public void InvalidIsolationWrapper_IsRejected(string value)
+    {
+        using var workspace = new TestWorkspace();
+        var configPath = workspace.Write("bidilint.json", $$"""
+            { "isolationWrappers": ["{{value}}"] }
+            """);
+
+        var resolution = ConfigLoader.Load(configPath);
+
+        Assert.Single(resolution.Errors);
+        Assert.Contains("isolationWrappers", resolution.Errors[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ConfigurableBidiRulesAcceptSeverityAndOff()
+    {
+        using var workspace = new TestWorkspace();
+        var configPath = workspace.Write("bidilint.json", """
+            {
+              "rules": {
+                "BidiControl": "warning",
+                "IsolateDepth": "off",
+                "NumberAdjacency": "error"
+              }
+            }
+            """);
+
+        var resolution = ConfigLoader.Load(configPath);
+
+        Assert.Empty(resolution.Errors);
+        Assert.Equal(DiagnosticSeverity.Warning, resolution.Config.Rules["BidiControl"].Severity);
+        Assert.True(resolution.Config.Rules["IsolateDepth"].Disabled);
+        Assert.Equal(DiagnosticSeverity.Error, resolution.Config.Rules["NumberAdjacency"].Severity);
+    }
+
+    [Fact]
+    public void NewBidiRuleSeverity_IsAppliedEndToEnd()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "a": "Text" }""");
+        workspace.Write("ar.json", """{ "a": "نص \u202Eabc" }""");
+        workspace.Write("bidilint.json", """
+            {
+              "rules": {
+                "UnisolatedLatin": "off",
+                "BidiControl": "warning"
+              }
+            }
+            """);
+
+        var (code, stdout, _) = workspace.RunCli(".", "--format", "json");
+
+        Assert.Equal(ExitCodes.Ok, code);
+        using var document = JsonDocument.Parse(stdout);
+        var finding = Assert.Single(
+            document.RootElement.GetProperty("findings").EnumerateArray(),
+            item => item.GetProperty("code").GetString() == DiagnosticCodes.BidiControl);
+        Assert.Equal("warning", finding.GetProperty("severity").GetString());
     }
 }

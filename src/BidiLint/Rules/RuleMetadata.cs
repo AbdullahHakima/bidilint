@@ -22,6 +22,9 @@ internal sealed record RuleMetadata(
         DiagnosticCodes.UnisolatedLatin,
         DiagnosticCodes.MixedNumerals,
         DiagnosticCodes.UnbalancedIsolates,
+        DiagnosticCodes.BidiControl,
+        DiagnosticCodes.IsolateDepth,
+        DiagnosticCodes.NumberAdjacency,
     };
 
     public bool Configurable => ConfigurableCodes.Contains(Code);
@@ -165,7 +168,7 @@ internal static class RuleCatalog
             SinceVersion: "0.1.0",
             BaselineAllowed: true,
             AllowsTerms: true,
-            "A Latin brand, command, URL, or code term is not isolated inside RTL text."),
+            "A Latin brand, command, URL, code term, or other left-to-right run is not isolated inside RTL text, uses the wrong isolate direction, or crosses an isolate boundary."),
         new(
             DiagnosticCodes.MixedNumerals,
             "Mixed numerals",
@@ -185,7 +188,37 @@ internal static class RuleCatalog
             SinceVersion: "0.1.0",
             BaselineAllowed: true,
             AllowsTerms: false,
-            "A bidi isolate opener has no matching PDI, or a PDI has no opener."),
+            "A bidi isolate opener has no matching PDI, or a PDI has no opener. The finding points at the unmatched control."),
+        new(
+            DiagnosticCodes.BidiControl,
+            "Bidi control",
+            "bidi",
+            DiagnosticSeverity.Error,
+            Fixable: false,
+            SinceVersion: "0.6.0",
+            BaselineAllowed: true,
+            AllowsTerms: false,
+            "Legacy bidi embeddings or overrides are unbalanced, ineffective across an isolate, or exceed the Unicode nesting limit. Directional marks are handled by the security rules."),
+        new(
+            DiagnosticCodes.IsolateDepth,
+            "Isolate depth",
+            "bidi",
+            DiagnosticSeverity.Warning,
+            Fixable: false,
+            SinceVersion: "0.6.0",
+            BaselineAllowed: true,
+            AllowsTerms: false,
+            "Bidi isolates are nested more deeply than the recommended limit, or an isolate contains no visible content."),
+        new(
+            DiagnosticCodes.NumberAdjacency,
+            "Number adjacency",
+            "bidi",
+            DiagnosticSeverity.Warning,
+            Fixable: false,
+            SinceVersion: "0.6.0",
+            BaselineAllowed: true,
+            AllowsTerms: false,
+            "Two or more logically adjacent numeric tokens resolve into a different visual order, so the numbers can appear swapped in RTL text."),
         new(
             DiagnosticCodes.BaseCultureMissing,
             "Base culture missing",

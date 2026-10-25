@@ -250,6 +250,11 @@ internal sealed class JsonLocaleParser
             Document = _document,
             Span = valueSpan,
             KeySpan = keySpan,
+            ValueMap = ValueSourceMap.TryCreate(
+                _source,
+                valueSpan,
+                value,
+                ValueQuoteSyntax.Json),
         });
     }
 

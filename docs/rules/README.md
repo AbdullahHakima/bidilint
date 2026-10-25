@@ -5,16 +5,19 @@ This file is generated from `RuleCatalog` and checked by a test.
 | Rule | Default | Category | Fixable | Since | Baseline |
 | --- | --- | --- | --- | --- | --- |
 | [`BaseCultureMissing`](#baseculturemissing) | error | structure | no | 0.3.0 | no |
+| [`BidiControl`](#bidicontrol) | error | bidi | no | 0.6.0 | yes |
 | [`CultureNotFound`](#culturenotfound) | error | discovery | no | 0.3.0 | no |
 | [`DuplicateKey`](#duplicatekey) | error | format | no | 0.3.0 | no |
 | [`EmptyValue`](#emptyvalue) | warning | structure | no | 0.1.0 | yes |
 | [`ExtraKey`](#extrakey) | warning | structure | no | 0.1.0 | yes |
+| [`IsolateDepth`](#isolatedepth) | warning | bidi | no | 0.6.0 | yes |
 | [`KeyCollision`](#keycollision) | error | format | no | 0.3.0 | no |
 | [`MalformedFile`](#malformedfile) | error | format | no | 0.3.0 | no |
 | [`MissingKey`](#missingkey) | error | structure | no | 0.1.0 | yes |
 | [`MixedNumerals`](#mixednumerals) | warning | bidi | no | 0.1.0 | yes |
 | [`NoLocaleFiles`](#nolocalefiles) | error | discovery | no | 0.3.0 | no |
 | [`NonStringValue`](#nonstringvalue) | warning | format | no | 0.3.0 | no |
+| [`NumberAdjacency`](#numberadjacency) | warning | bidi | no | 0.6.0 | yes |
 | [`PathNotFound`](#pathnotfound) | error | discovery | no | 0.3.0 | no |
 | [`PlaceholderMismatch`](#placeholdermismatch) | error | placeholder | no | 0.1.0 | yes |
 | [`StaleBaseline`](#stalebaseline) | warning | configuration | no | 0.5.0 | no |
@@ -31,6 +34,14 @@ This file is generated from `RuleCatalog` and checked by a test.
 The configured base culture does not exist for a resource set, so that set cannot be compared.
 
 This is a load, format, or configuration diagnostic. It cannot be suppressed or reconfigured; fix the input and rerun BidiLint.
+
+## BidiControl
+
+**Bidi control** · error · bidi · since 0.6.0
+
+Legacy bidi embeddings or overrides are unbalanced, ineffective across an isolate, or exceed the Unicode nesting limit. Directional marks are handled by the security rules.
+
+Suppress with an `ignore` entry, or change the severity under `rules.BidiControl`.
 
 ## CultureNotFound
 
@@ -63,6 +74,14 @@ Suppress with an `ignore` entry, or change the severity under `rules.EmptyValue`
 A key exists only in the translated resource set. It may be dead text left behind by a redesign.
 
 Suppress with an `ignore` entry, or change the severity under `rules.ExtraKey`.
+
+## IsolateDepth
+
+**Isolate depth** · warning · bidi · since 0.6.0
+
+Bidi isolates are nested more deeply than the recommended limit, or an isolate contains no visible content.
+
+Suppress with an `ignore` entry, or change the severity under `rules.IsolateDepth`.
 
 ## KeyCollision
 
@@ -112,6 +131,14 @@ A JSON value is not a string and cannot be analyzed as user-visible locale text.
 
 This is a load, format, or configuration diagnostic. It cannot be suppressed or reconfigured; fix the input and rerun BidiLint.
 
+## NumberAdjacency
+
+**Number adjacency** · warning · bidi · since 0.6.0
+
+Two or more logically adjacent numeric tokens resolve into a different visual order, so the numbers can appear swapped in RTL text.
+
+Suppress with an `ignore` entry, or change the severity under `rules.NumberAdjacency`.
+
 ## PathNotFound
 
 **Path not found** · error · discovery · since 0.3.0
@@ -148,7 +175,7 @@ This is a load, format, or configuration diagnostic. It cannot be suppressed or 
 
 **Unbalanced isolates** · error · bidi · since 0.1.0
 
-A bidi isolate opener has no matching PDI, or a PDI has no opener.
+A bidi isolate opener has no matching PDI, or a PDI has no opener. The finding points at the unmatched control.
 
 Suppress with an `ignore` entry, or change the severity under `rules.UnbalancedIsolates`.
 
@@ -156,7 +183,7 @@ Suppress with an `ignore` entry, or change the severity under `rules.UnbalancedI
 
 **Unisolated Latin run** · warning · bidi · since 0.1.0
 
-A Latin brand, command, URL, or code term is not isolated inside RTL text.
+A Latin brand, command, URL, code term, or other left-to-right run is not isolated inside RTL text, uses the wrong isolate direction, or crosses an isolate boundary.
 
 Suppress with an `ignore` entry, or change the severity under `rules.UnisolatedLatin`.
 
