@@ -2,7 +2,7 @@
 
 > **From a working prototype to a production localization linter teams keep in CI.**
 >
-> Current release: **0.5.0** (2026-10-23) · Target: **1.0.0** · Last reviewed: 2026-10-26
+> Current release: **0.6.0** (2026-10-26) · Target: **1.0.0** · Last reviewed: 2026-10-26
 
 ---
 
@@ -59,20 +59,22 @@ Production is not "more rules". It means all of the following are true:
 | 0.3.0 | Diagnostics with source spans, BCP-47 discovery, malformed/duplicate/collision handling, safe discovery, testable CLI, stable exit codes, Hebrew/RTL script detection, CI and package hardening |
 | 0.4.0 | Format adapters for JSON culture dirs, Android, Apple `.strings`, gettext PO/POT, and Flutter ARB; layout-aware resource sets; format-specific diagnostics and fixtures |
 | 0.5.0 | JSONC config and schema, custom layouts/files, rule metadata and generated docs, reasoned ignores, baselines, CI thresholds, quiet/color/debug output |
+| 0.6.0 | Unicode 17.0.0 bidi data and UAX #9 resolver, script/culture direction detection, isolation and control rewrite, numeral/normalization rules, Trojan Source security rules, RTL fixture corpus, golden outputs, and a 100k-entry CI benchmark |
 
-Verified on 2026-10-23: `dotnet build`, `dotnet test`, and `dotnet format
---verify-no-changes` succeed; **164 tests pass**; the storefront sample reports
-4 errors and 5 warnings; the resx sample reports 1 error and 1 warning; the
+Verified on 2026-10-26: `dotnet build`, `dotnet test`, and `dotnet format
+--verify-no-changes` succeed; **366 tests pass**; the storefront sample reports
+4 errors and 5 warnings; the resx sample reports 1 error and 2 warnings; the
 packed tool installs and runs in CI. Six locale formats now share one
-span-aware document model, and 0.5 adds an audited adoption path for legacy
-repositories.
+span-aware document model. The 0.6 engine passes the full Unicode 17.0.0
+`BidiTest` and `BidiCharacterTest` suites, and the 100k-entry benchmark
+completes inside the CI budget.
 
-### Honest audit after 0.5.0
+### Honest audit after 0.6.0
 
-The foundation, the common format adapters, and the adoption layer are in
-place. The remaining gaps below drive the next phases.
+The foundation, the common format adapters, the adoption layer, and the bidi
+engine are in place. The remaining gaps below drive the next phases.
 
-| Area | After 0.5.0 | Remaining gap |
+| Area | After 0.6.0 | Remaining gap |
 | --- | --- | --- |
 | Discovery | JSON culture files/directories, `.resx` sets, Android `res/values*`, Apple `.lproj`, gettext PO/POT, ARB; generated folders and symlink loops skipped | YAML/i18next variants and richer config discovery (1.1) |
 | Load failures | Malformed JSON/XML/PO/.strings, bad encodings, duplicate keys, and flattening collisions produce positioned diagnostics | Size limits, partial-parse recovery, and diagnostics for every ignored implicit candidate |
@@ -102,8 +104,7 @@ These were the prerequisites before any new format:
 4. Replace regex-only placeholders with format-aware parsers. **Still open;
    0.7.0.**
 5. Make bidi analysis script-aware (Arabic, Hebrew, Syriac, Thaana, N'Ko, and
-   other RTL scripts), not Arabic-only. **Script gating done in 0.3.0; full
-   engine in 0.6.0.**
+   other RTL scripts), not Arabic-only. **Done in 0.6.0.**
 
 ---
 
@@ -221,7 +222,9 @@ BidiLint 1.0 ships only when this checklist is green.
 ### Performance and reliability
 
 - [ ] 100,000 entries across 500 files complete in under 3 seconds on a
-      developer laptop; typical 10,000-entry projects under 1 second.
+      developer laptop; typical 10,000-entry projects under 1 second. The 0.6
+      CI gate is five seconds for the generated benchmark (about 1.8 seconds
+      locally on 2026-10-26); the 1.0 target remains three seconds.
 - [ ] Peak memory under 256 MB for the 100k-entry fixture.
 - [ ] No regex without a timeout or non-backtracking mode.
 - [ ] No network calls, no telemetry, no execution of locale content.
@@ -363,6 +366,8 @@ and fail only on newly introduced findings; every suppression is auditable.
 
 ### 0.6.0 — Real bidi engine
 
+**Status:** shipped in 0.6.0 (2026-10-26).
+
 **Theme:** replace regex guesses with Unicode-aware bidi analysis.
 
 **Why:** this is the differentiator. A bidi linter that cannot explain visual
@@ -408,12 +413,20 @@ order or handle Hebrew is a demo, not a tool.
 - [x] Add a visual-order explanation: for each flagged run, show the resolved
       level change and an escaped logical string, not just "may render wrong".
 - [x] Add Hebrew, Persian, Urdu, mixed-numeral, control-character, and
-      visual-order fixtures.
+      visual-order fixtures. Each independent resource set covers every 0.6
+      rule with a positive and a benign counterpart.
+- [x] Check in golden text and JSON reports for the 0.6 corpus, with elapsed
+      time pinned to zero and the package version pinned to 0.6.0.
+- [x] Add a deterministic 100,000-entry, 500-file benchmark fixture and enforce
+      the five-second CI budget in `BenchmarkTests`.
+- [x] Document the full Unicode 17.0.0 UAX #9 conformance suite and its
+      exclusions in `docs/conformance.md`.
 
 **Exit criteria:** the engine passes the documented Unicode conformance
-subset; Hebrew and Persian fixtures are linted; no rule claims to implement
-bidi without using resolved levels; false positives on already-isolated
-content are zero in the fixture corpus.
+subset; Hebrew, Persian, and Urdu fixtures are linted; no rule claims to
+implement bidi without using resolved levels; false positives on
+already-isolated content are zero in the fixture corpus; the package builds,
+installs, and passes both sample smoke tests.
 
 ### 0.7.0 — Localization correctness beyond bidi
 

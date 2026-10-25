@@ -1,0 +1,8 @@
+{
+  "persian.latin.positive": "ساخته شده با BidiLint",
+  "persian.latin.benign": "ساخته شده با \u2066BidiLint\u2069",
+  "persian.joiner.positive": "متن \u200C",
+  "persian.joiner.benign": "می\u200Cخواهم",
+  "persian.numerals.positive": "قیمت ۱۲ و 12",
+  "persian.numerals.benign": "قیمت ۱۲"
+}

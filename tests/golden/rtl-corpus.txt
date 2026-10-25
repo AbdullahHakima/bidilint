@@ -1,0 +1,56 @@
+hebrew/locales/he/messages.json:2:37  warning  UnisolatedLatin  hebrew.latin.positive
+  Latin run "BidiLint" is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir="ltr".
+  logical: "BidiLint"; paragraph level 1 (RTL), run level 2 (LTR) for 8 code units
+hebrew/locales/he/messages.json:4:38  warning  MixedNumerals  hebrew.numerals.positive
+  Found Western digits (0-9) and Arabic-Indic digits (٠-٩) in one string; pick one numeral system per string.
+hebrew/locales/he/messages.json:6:36  warning  NumberAdjacency  hebrew.numbers.positive
+  Numbers 1, 2, 3 are separated only by neutral characters and resolve visually as 3, 2, 1 from left to right in this RTL paragraph. Wrap the sequence in an LRI/FSI if the logical order must stay visible.
+  logical: "1 2 3"; paragraph level 1 (RTL), run level 2 (LTR) for 3 code units
+  visual: "3, 2, 1"
+persian/locales/fa/messages.json:2:43  warning  UnisolatedLatin  persian.latin.positive
+  Latin run "BidiLint" is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir="ltr".
+  logical: "BidiLint"; paragraph level 1 (RTL), run level 2 (LTR) for 8 code units
+persian/locales/fa/messages.json:4:35  error    InvisibleControl  persian.joiner.positive
+  zero-width non-joiner (U+200C) is not next to joining-script text; remove it or place it where the shaping context requires it.
+persian/locales/fa/messages.json:6:38  warning  MixedNumerals  persian.numerals.positive
+  Found Western digits (0-9) and Extended Arabic-Indic digits (۰-۹) in one string; pick one numeral system per string.
+rules/locales/ar/messages.json:2:46  warning  UnisolatedLatin  unisolatedLatin.positive
+  Latin run "BidiLint" is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir="ltr".
+  logical: "BidiLint"; paragraph level 1 (RTL), run level 2 (LTR) for 8 code units
+rules/locales/ar/messages.json:4:35  warning  MixedNumerals  mixedNumerals.positive
+  Found Western digits (0-9) and Arabic-Indic digits (٠-٩) in one string; pick one numeral system per string.
+rules/locales/ar/messages.json:6:37  error    UnbalancedIsolates  unbalancedIsolate.positive
+  Unclosed LRI (U+2066); it runs to the end of the value. Add a matching PDI (U+2069) after the isolated text.
+rules/locales/ar/messages.json:8:33  error    BidiControl  legacyControl.positive
+  Unclosed LRE (U+202A); it runs to the end of the value and can reorder later text. Add a matching PDF (U+202C) or replace the embedding with LRI..PDI.
+rules/locales/ar/messages.json:10:128  warning  IsolateDepth  isolateDepth.positive
+  Isolate nesting reached 17 levels; the recommended maximum is 16. Flatten the markup or reuse an outer isolate.
+rules/locales/ar/messages.json:12:35  warning  NumberAdjacency  numberAdjacency.positive
+  Numbers 1, 2, 3 are separated only by neutral characters and resolve visually as 3, 2, 1 from left to right in this RTL paragraph. Wrap the sequence in an LRI/FSI if the logical order must stay visible.
+  logical: "1 2 3"; paragraph level 1 (RTL), run level 2 (LTR) for 3 code units
+  visual: "3, 2, 1"
+rules/locales/ar/messages.json:14:36  warning  PresentationForm  presentationForm.positive
+  Arabic presentation form U+FEFB (ﻻ) is a compatibility character. Replace it with standard Arabic letters so normalization, search, and shaping stay consistent.
+rules/locales/ar/messages.json:16:33  warning  Normalization  normalization.positive
+  Text element "e\u{0301}" is not Unicode NFC; the normalized form is "é". Store normalized text for stable search, comparison, and rendering.
+rules/locales/ar/messages.json:18:27  warning  Tatweel  tatweel.positive
+  Arabic tatweel (U+0640) is present; it elongates glyphs but is not a letter. Remove it unless the kashida is intentional, or lower rules.Tatweel.
+rules/locales/ar/messages.json:20:37  error    BidiOverride  security.override.positive
+  Bidi override RLO (U+202E) can reorder or hide text (Trojan Source). Remove it or replace it with an isolate (LRI/RLI/FSI..PDI).
+rules/locales/ar/messages.json:22:32  error    InvisibleControl  security.bom.positive
+  Byte order mark (U+FEFF) appears in visible text; remove it. BOMs are invisible and can hide content or break search and comparison.
+rules/locales/ar/messages.json:24:33  error    InvisibleControl  security.joiner.positive
+  zero-width joiner (U+200D) is not next to joining-script text or an emoji sequence; remove it or place it where the shaping context requires it.
+rules/locales/ar/messages.json:26:33  error    InvisibleControl  security.mark.positive
+  left-to-right mark (U+200E) does not change the resolved order of any visible text; remove it or place it where it controls a neutral boundary.
+urdu/locales/ur/messages.json:2:27  warning  UnisolatedLatin  urdu.latin.positive
+  Latin run "BidiLint" is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir="ltr".
+  logical: "BidiLint"; paragraph level 1 (RTL), run level 2 (LTR) for 8 code units
+urdu/locales/ur/messages.json:4:32  error    InvisibleControl  urdu.joiner.positive
+  zero-width joiner (U+200D) is not next to joining-script text or an emoji sequence; remove it or place it where the shaping context requires it.
+urdu/locales/ur/messages.json:6:34  warning  NumberAdjacency  urdu.numbers.positive
+  Numbers 1, 2, 3 are separated only by neutral characters and resolve visually as 3, 2, 1 from left to right in this RTL paragraph. Wrap the sequence in an LRI/FSI if the logical order must stay visible.
+  logical: "1 2 3"; paragraph level 1 (RTL), run level 2 (LTR) for 3 code units
+  visual: "3, 2, 1"
+
+BidiLint 0.6.0: 8 file(s), base en, 88 entries — 8 error(s), 14 warning(s) in 0 ms.

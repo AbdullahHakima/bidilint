@@ -9,11 +9,11 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>bidilint</ToolCommandName>
     <PackageId>BidiLint</PackageId>
-    <Version>0.5.0</Version>
-    <AssemblyVersion>0.5.0.0</AssemblyVersion>
-    <FileVersion>0.5.0.0</FileVersion>
+    <Version>0.6.0</Version>
+    <AssemblyVersion>0.6.0.0</AssemblyVersion>
+    <FileVersion>0.6.0.0</FileVersion>
     <Authors>Abdullah Hakim</Authors>
-    <Description>Lint RTL localization files for bidi pitfalls: missing keys, unisolated Latin runs, mixed numeral systems, and unbalanced isolates. Supports JSON, .resx, Android, Apple .strings, gettext, and Flutter ARB, with config, reasoned suppressions, baselines, and CI thresholds.</Description>
+    <Description>Lint RTL localization files with a Unicode 17 UAX #9 bidi engine: missing keys, unisolated Latin runs, mixed numerals, unbalanced isolates, presentation forms, and Trojan Source controls. Supports JSON, .resx, Android, Apple .strings, gettext, and Flutter ARB, with config, reasoned suppressions, baselines, and CI thresholds.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/AbdullahHakima/bidilint</RepositoryUrl>
@@ -29,6 +29,7 @@
     <None Include="..\..\README.md" Pack="true" PackagePath="\" />
     <None Include="..\..\schema\bidilint.schema.json" Pack="true" PackagePath="schema\" Link="schema/bidilint.schema.json" />
     <None Include="..\..\docs\rules\README.md" Pack="true" PackagePath="docs\rules\" Link="docs/rules/README.md" />
+    <None Include="..\..\docs\conformance.md" Pack="true" PackagePath="docs\" Link="docs/conformance.md" />
   </ItemGroup>
 
 </Project>

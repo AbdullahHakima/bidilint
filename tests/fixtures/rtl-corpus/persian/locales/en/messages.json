@@ -1,0 +1,8 @@
+{
+  "persian.latin.positive": "Built with BidiLint",
+  "persian.latin.benign": "Built with BidiLint",
+  "persian.joiner.positive": "Joiner control",
+  "persian.joiner.benign": "Joiner context",
+  "persian.numerals.positive": "Price 12",
+  "persian.numerals.benign": "Price 12"
+}

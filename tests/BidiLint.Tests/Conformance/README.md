@@ -15,4 +15,11 @@ large downloads during development. They identify themselves as Unicode
 17.0.0 in their headers, and the uncompressed hashes above let a future
 maintainer verify a fresh download before replacing a fixture.
 
+The harness runs every case: 770,241 `BidiTest` class/direction combinations
+and 91,707 `BidiCharacterTest` lines. It checks paragraph levels, resolved
+levels, X9 removals, and L2 visual order; see
+[`docs/conformance.md`](../../../docs/conformance.md) for the implemented scope
+and the documented exclusions (paragraph splitting, line layout, rendering, and
+higher-level protocols).
+
 See <https://www.unicode.org/terms_of_use.html> for the Unicode data terms.

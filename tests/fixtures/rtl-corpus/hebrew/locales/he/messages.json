@@ -1,0 +1,8 @@
+{
+  "hebrew.latin.positive": "נבנה עם BidiLint",
+  "hebrew.latin.benign": "נבנה עם \u2066BidiLint\u2069",
+  "hebrew.numerals.positive": "הזמנה ١٢ ו-12",
+  "hebrew.numerals.benign": "הזמנה 12",
+  "hebrew.numbers.positive": "מספר 1 2 3 כאן",
+  "hebrew.numbers.benign": "מספר \u20661 2 3\u2069 כאן"
+}

@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.6.0] - 2026-10-26
 
 ### Added
 
@@ -61,7 +61,18 @@
   affects the exit code.
 - Added tests for security positives, benign contexts, reasoned waivers,
   config rejection, baseline exclusion/rejection, markup masking, and exact
-  spans. The full suite now has 362 tests.
+  spans.
+- Added a checked-in RTL fixture corpus with independent Arabic, Hebrew,
+  Persian, and Urdu resource sets. It covers all eleven 0.6 rules with a
+  positive and a benign counterpart, plus golden text and JSON reports with
+  deterministic elapsed time and version.
+- Added a deterministic 100,000-entry, 500-file benchmark fixture. The test
+  suite enforces a five-second CI budget for discovery, parsing, comparison,
+  and linting.
+- Documented the full Unicode 17.0.0 UAX #9 conformance suite, the tested
+  counts, and the exclusions for paragraph splitting, line layout, rendering,
+  and higher-level protocols in `docs/conformance.md`.
+- The full suite now has 366 tests.
 
 ### Changed
 

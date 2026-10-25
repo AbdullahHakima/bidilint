@@ -1,0 +1,8 @@
+{
+  "hebrew.latin.positive": "Built with BidiLint",
+  "hebrew.latin.benign": "Built with BidiLint",
+  "hebrew.numerals.positive": "Order 12",
+  "hebrew.numerals.benign": "Order 12",
+  "hebrew.numbers.positive": "Numbers 1 2 3",
+  "hebrew.numbers.benign": "Numbers 1 2 3"
+}
