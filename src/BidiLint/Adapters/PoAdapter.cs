@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 
 namespace BidiLint;
@@ -234,7 +235,15 @@ internal sealed class PoAdapter : ILocaleAdapter
                     {
                         var value = form.Value.ToString();
                         if (_isTemplate && value.Length == 0) value = msgid;
-                        AddEntry($"{keyPrefix}[{form.Key}]", value, keySpan, span);
+                        AddEntry(
+                            $"{keyPrefix}[{form.Key}]",
+                            value,
+                            keySpan,
+                            span,
+                            new PluralFormInfo(
+                                keyPrefix,
+                                form.Key.ToString(CultureInfo.InvariantCulture),
+                                PluralFormKind.Numeric));
                     }
                 }
                 else
@@ -249,7 +258,12 @@ internal sealed class PoAdapter : ILocaleAdapter
             _current = null;
         }
 
-        private void AddEntry(string key, string value, SourceSpan? keySpan, SourceSpan? span)
+        private void AddEntry(
+            string key,
+            string value,
+            SourceSpan? keySpan,
+            SourceSpan? span,
+            PluralFormInfo? plural = null)
         {
             if (_document.Entries.TryGetValue(key, out var existing))
             {
@@ -279,6 +293,7 @@ internal sealed class PoAdapter : ILocaleAdapter
                 Document = _document,
                 Span = span,
                 KeySpan = keySpan,
+                Plural = plural,
             });
         }
 

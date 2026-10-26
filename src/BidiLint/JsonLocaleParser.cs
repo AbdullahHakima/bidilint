@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 
 namespace BidiLint;
@@ -157,6 +158,11 @@ internal sealed class JsonLocaleParser
 
     private void ParseArray(ref Utf8JsonReader reader, string prefix, bool collect)
     {
+        // Nextcloud and similar gettext-derived JSON trees encode a plural
+        // group as a string array under "_singular_::_plural_". Other JSON
+        // arrays are ordinary indexed lists and must keep their ExtraKey
+        // behavior. Android and PO use explicit plural metadata instead.
+        var pluralGroup = IsPluralArrayKey(prefix) ? prefix : null;
         var index = 0;
 
         while (true)
@@ -166,16 +172,26 @@ internal sealed class JsonLocaleParser
 
             if (reader.TokenType == JsonTokenType.EndArray) return;
 
-            ParseValue(ref reader, $"{prefix}[{index}]", keySpan: null, collect);
+            var plural = pluralGroup is null
+                ? null
+                : new PluralFormInfo(
+                    pluralGroup,
+                    index.ToString(CultureInfo.InvariantCulture),
+                    PluralFormKind.Numeric);
+            ParseValue(ref reader, $"{prefix}[{index}]", keySpan: null, collect, plural);
             index++;
         }
     }
+
+    private static bool IsPluralArrayKey(string key) =>
+        key.Contains("::", StringComparison.Ordinal);
 
     private void ParseValue(
         ref Utf8JsonReader reader,
         string key,
         SourceSpan? keySpan,
-        bool collect)
+        bool collect,
+        PluralFormInfo? plural = null)
     {
         switch (reader.TokenType)
         {
@@ -190,7 +206,7 @@ internal sealed class JsonLocaleParser
             case JsonTokenType.String:
                 if (collect)
                 {
-                    AddEntry(key, reader.GetString() ?? "", keySpan, SpanOf(reader));
+                    AddEntry(key, reader.GetString() ?? "", keySpan, SpanOf(reader), plural);
                 }
                 break;
 
@@ -220,7 +236,8 @@ internal sealed class JsonLocaleParser
         string key,
         string value,
         SourceSpan? keySpan,
-        SourceSpan valueSpan)
+        SourceSpan valueSpan,
+        PluralFormInfo? plural = null)
     {
         if (_document.Entries.TryGetValue(key, out var existing))
         {
@@ -255,6 +272,7 @@ internal sealed class JsonLocaleParser
                 valueSpan,
                 value,
                 ValueQuoteSyntax.Json),
+            Plural = plural,
         });
     }
 

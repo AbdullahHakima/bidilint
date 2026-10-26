@@ -1,24 +1,27 @@
 # Field validation: Nextcloud RTL locale trees
 
-BidiLint 0.7.0 was run against real Arabic, Persian, and Hebrew locale files
-from Nextcloud server (`master`, downloaded 2026-10-26). The goal was to find
-crashes, false positives, and gaps that unit fixtures miss, not to add every
-Nextcloud string as a regression fixture. The 0.6.1 resource-set fix and the
-0.7.0 placeholder parser were both checked against the same corpus.
+BidiLint 0.7.0 and 0.7.1 were run against real Arabic, Persian, and Hebrew
+locale files from Nextcloud server (`master`, downloaded 2026-10-26). The goal
+was to find crashes, false positives, and gaps that unit fixtures miss, not to
+add every Nextcloud string as a regression fixture. The 0.6.1 resource-set fix,
+the 0.7.0 placeholder parser, and the 0.7.1 plural grouping were all checked
+against the same corpus.
 
 ## Corpus
 
-| Run | Files | Entries | 0.6.1 findings | 0.7.0 findings | 0.7.0 errors | 0.7.0 warnings |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| `core/l10n` (`ar`, `fa`, `en_GB`) | 3 | 1,505 | 435 | 435 | 263 | 172 |
-| `apps/settings/l10n` (`ar`, `fa`, `he`, `en_GB`) | 4 | 3,318 | 1,783 | 1,792 | 985 | 807 |
-| Five apps (`comments`, `dashboard`, `files`, `settings`, `sharing`) | 17 | 4,773 | 1,995 | 2,006 | 1,127 | 879 |
+| Run | Files | Entries | 0.6.1 findings | 0.7.0 findings | 0.7.1 findings | 0.7.1 errors | 0.7.1 warnings |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `core/l10n` (`ar`, `fa`, `en_GB`) | 3 | 1,505 | 435 | 435 | 422 | 262 | 160 |
+| `apps/settings/l10n` (`ar`, `fa`, `he`, `en_GB`) | 4 | 3,318 | 1,783 | 1,792 | 1,777 | 983 | 794 |
+| Five apps (`comments`, `dashboard`, `files`, `settings`, `sharing`) | 17 | 4,773 | 1,995 | 2,006 | 1,963 | 1,122 | 841 |
 
 All runs used `--base en_GB --no-config`. No run crashed, produced an unreadable
-path, or reported a malformed file. The 0.7.0 delta is entirely
+path, or reported a malformed file. The 0.7.0 delta was entirely
 `PlaceholderMismatch`: seven newly detected dropped printf arguments and four
-deferred flattened-plural branches. Bidi and security counts are unchanged from
-0.6.1.
+deferred flattened-plural branches. The 0.7.1 delta removed only the known
+flattened-plural false positives: 13 findings in core, 15 in settings, and 43
+in the five-app run. Bidi and security counts are unchanged from 0.7.0, and no
+new findings were introduced.
 
 ## Triage
 
@@ -62,22 +65,27 @@ the `.well-known` resolver warning. These are real dropped placeholders, not
 parser noise; 0.6.1 did not parse printf and could not report them. Regression
 coverage is `PlaceholderTests.MissingPrintfArgument_IsReported`.
 
-### Deferred: flattened plural branches
+### Fixed in 0.7.1: flattened plural groups
 
-Flattened plural groups still compare branch by branch. The core run has one
-finding, the settings app has two, and the five-app run has four because it
-includes the settings app:
+Nextcloud JSON stores plural translations as string arrays under keys such as
+`_%n folder_::_%n folders_`. Arabic has six forms and legitimately omits `%n`
+from the zero/one/two branches; Persian and Hebrew singular branches do the
+same. Comparing those arrays branch by branch produced `ExtraKey` for the
+additional forms and `PlaceholderMismatch` for the omitted count.
 
-```text
-_%n app has an update available_::_%n apps have an update available_[0]
-expected [%n], found []
-```
+BidiLint 0.7.1 now marks these arrays as one plural group and compares the
+union of non-empty branches. Additional target forms are accepted, and a
+placeholder missing from every branch is still reported. Android `<plurals>`
+and gettext `msgstr[n]` groups use the same comparison. Named Android groups
+still require `other`.
 
-The singular branch legitimately omits the count. The 0.7.0 ICU parser handles
-plural messages inside one value, but JSON plural arrays and gettext plural
-forms are flattened before comparison. Pairing those groups by key and culture
-is the next 0.7.x slice. No broad "plural branch may omit placeholders"
-heuristic was added, because that would hide genuinely dropped arguments.
+The field run removed 13 findings in core (one deferred placeholder finding and
+12 `ExtraKey`), 15 in settings (two deferred placeholder findings and 13
+`ExtraKey`), and 43 in the five-app run (five deferred placeholder findings and
+38 `ExtraKey`). The remaining seven `PlaceholderMismatch` findings in settings
+and the five-app run are the real dropped printf arguments above. Generic JSON
+arrays and Android `<string-array>` remain indexed lists and still report extra
+items. Regression coverage is `tests/BidiLint.Tests/PluralGroupTests.cs`.
 
 ### Retained: Hebrew right-to-left mark
 
@@ -97,9 +105,9 @@ the security rule was not weakened.
 - `MissingKey` is the largest group because the Arabic, Persian, and Hebrew
   translations do not cover every `en_GB` key. These are real coverage gaps,
   not parser failures.
-- `ExtraKey` is dominated by additional plural forms. This is the same
-  flattened-plural limitation documented in the README and scheduled for
-  0.7.x.
+- The 0.7.1 runs report no `ExtraKey` findings in this corpus. The additional
+  plural forms that previously dominated this category are now paired as
+  groups; generic arrays still keep the old behavior.
 - `UnisolatedLatin` mostly reports acronyms, brand names, and code terms such
   as `IP`, `API`, `PHP`, `cron`, and product names. That matches the current
   rule policy; changing it would be a precision-policy change.

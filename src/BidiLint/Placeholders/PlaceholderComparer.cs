@@ -6,9 +6,29 @@ internal static class PlaceholderComparer
         PlaceholderMessage baseMessage,
         PlaceholderMessage targetMessage)
     {
-        var baseShape = PlaceholderShape.Build(baseMessage);
-        var targetShape = PlaceholderShape.Build(targetMessage);
+        return CompareShapes(
+            PlaceholderShape.Build(baseMessage),
+            PlaceholderShape.Build(targetMessage));
+    }
 
+    // Flattened plural branches are not one-to-one across cultures: a target
+    // may have more categories, and a singular-like branch may legitimately
+    // omit the count. Compare the union of placeholders across the group,
+    // preserving the maximum multiplicity seen in any one branch so a branch
+    // that genuinely repeats a placeholder is still checked.
+    public static PlaceholderComparison ComparePluralGroup(
+        IReadOnlyList<PlaceholderMessage> baseMessages,
+        IReadOnlyList<PlaceholderMessage> targetMessages)
+    {
+        return CompareShapes(
+            MergeShapes(baseMessages.Select(PlaceholderShape.Build)),
+            MergeShapes(targetMessages.Select(PlaceholderShape.Build)));
+    }
+
+    private static PlaceholderComparison CompareShapes(
+        PlaceholderShape baseShape,
+        PlaceholderShape targetShape)
+    {
         var nameDifference = CompareNames(
             baseShape.TopLevel,
             targetShape.TopLevel);
@@ -139,6 +159,99 @@ internal static class PlaceholderComparer
             null,
             null);
     }
+
+    private static PlaceholderShape MergeShapes(IEnumerable<PlaceholderShape> shapes)
+    {
+        var shapeList = shapes.ToList();
+        return new PlaceholderShape(
+            MergeUses(shapeList.Select(shape => shape.TopLevel)),
+            MergeGroups(shapeList.Select(shape => shape.Groups)));
+    }
+
+    private static List<PlaceholderUse> MergeUses(
+        IEnumerable<IReadOnlyList<PlaceholderUse>> useLists)
+    {
+        var maxCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var representatives = new Dictionary<string, PlaceholderUse>(StringComparer.Ordinal);
+
+        foreach (var uses in useLists)
+        {
+            var localCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var use in uses)
+            {
+                var key = UseSignature(use);
+                localCounts[key] = localCounts.GetValueOrDefault(key) + 1;
+                representatives.TryAdd(key, use);
+            }
+
+            foreach (var (key, count) in localCounts)
+                maxCounts[key] = Math.Max(maxCounts.GetValueOrDefault(key), count);
+        }
+
+        var merged = new List<PlaceholderUse>();
+        foreach (var (key, count) in maxCounts.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        {
+            var representative = representatives[key];
+            for (var index = 0; index < count; index++)
+                merged.Add(representative);
+        }
+
+        return merged;
+    }
+
+    private static List<PlaceholderGroup> MergeGroups(
+        IEnumerable<IReadOnlyList<PlaceholderGroup>> groupLists)
+    {
+        var maxCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var representatives = new Dictionary<string, PlaceholderGroup>(StringComparer.Ordinal);
+        var nestedUses = new Dictionary<string, List<IReadOnlyList<PlaceholderUse>>>(StringComparer.Ordinal);
+
+        foreach (var groups in groupLists)
+        {
+            var localCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (var group in groups)
+            {
+                var key = GroupSignature(group);
+                localCounts[key] = localCounts.GetValueOrDefault(key) + 1;
+                representatives.TryAdd(key, group);
+                if (!nestedUses.TryGetValue(key, out var nested))
+                {
+                    nested = new List<IReadOnlyList<PlaceholderUse>>();
+                    nestedUses.Add(key, nested);
+                }
+                nested.Add(group.NestedUses);
+            }
+
+            foreach (var (key, count) in localCounts)
+                maxCounts[key] = Math.Max(maxCounts.GetValueOrDefault(key), count);
+        }
+
+        var merged = new List<PlaceholderGroup>();
+        foreach (var (key, count) in maxCounts.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        {
+            var representative = representatives[key];
+            var mergedNested = MergeUses(nestedUses[key]);
+            for (var index = 0; index < count; index++)
+            {
+                merged.Add(new PlaceholderGroup(
+                    representative.Name,
+                    representative.Kind,
+                    representative.Selectors,
+                    mergedNested,
+                    representative.Token));
+            }
+        }
+
+        return merged;
+    }
+
+    private static string UseSignature(PlaceholderUse use) =>
+        use.Name + "\u0000" + (use.Format ?? string.Empty);
+
+    private static string GroupSignature(PlaceholderGroup group) =>
+        group.Name + "\u0000" +
+        (int)group.Kind + "\u0000" +
+        string.Join("\u0000", group.Selectors.Order(StringComparer.Ordinal));
 
     private static (PlaceholderToken? Base, PlaceholderToken? Target)? CompareNames(
         IReadOnlyList<PlaceholderUse> baseUses,
