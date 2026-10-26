@@ -161,6 +161,8 @@ Configurable rules:
 | `ExtraKey` | warning |
 | `EmptyValue` | warning |
 | `PlaceholderMismatch` | error |
+| `PlaceholderSyntax` | error |
+| `PlaceholderType` | error |
 | `UnisolatedLatin` | warning |
 | `MixedNumerals` | warning |
 | `PresentationForm` | warning |
@@ -193,8 +195,11 @@ while `ar-Latn` and `ku-Latn` are not.
 `isolationWrappers` adds HTML/XML element names, such as `x-bidi`, that already
 isolate their content in the rendered UI. Built-in `<bdi>`, `<code>`,
 `dir="ltr"`, and LRI/FSI/RLI controls are always recognized.
-`placeholderDialects` currently accepts `auto`, `braced`, `dotnet`, and `none`;
-ICU, printf, and i18next dialect parsing is scheduled for 0.7.
+`placeholderDialects` accepts `auto`, `dotnet` (alias `braced`), `icu`,
+`printf`, `i18next`, `angular`, `rails`, `javascript`, `mustache` (alias
+`handlebars`), and `none`. `auto` infers the dialect from the format and value;
+selecting more than one specific dialect is a config error because a message is
+never parsed as two dialects at once. See [Placeholder dialects](#placeholder-dialects).
 `numeralPolicy` accepts `mixed` (default), `allow`, `western`,
 `arabic-indic`, or `extended-arabic-indic`. `western` uses `0-9`,
 `arabic-indic` uses `٠-٩` (U+0660–U+0669), and `extended-arabic-indic` uses
@@ -274,6 +279,33 @@ directories through `files` with the same `resourceSet` when they should be
 compared. A base must exist for every set; otherwise the finding says which set
 cannot be compared.
 
+### Placeholder dialects
+
+Placeholder comparison is AST-based. The format selects a default dialect:
+
+| Format | Default dialect |
+| --- | --- |
+| JSON / JSONC | auto-detect |
+| .resx | .NET composite |
+| Flutter ARB | ICU MessageFormat 1 |
+| Android, Apple .strings, gettext PO/POT | printf |
+
+`placeholderDialects` overrides the default: `auto`, `dotnet` (`braced`),
+`icu`, `printf`, `i18next`, `angular`, `rails`, `javascript`, `mustache`
+(`handlebars`), or `none`. Only one specific dialect may be selected; `none`
+disables placeholder comparison. Auto-detection recognizes escaped .NET braces,
+ICU plural/select, printf positional arguments, double-braced
+i18next/Angular/Mustache placeholders, Rails `%{name}`, and JavaScript
+`${name}`. It is a heuristic: if a JSON value is ambiguous (for example,
+literal `{{...}}` without another placeholder), set the dialect explicitly.
+
+ICU plural and select messages compare argument names, the required `other`
+branch, select branch parity, and nested placeholders. Plural categories may
+differ by language; extra categories such as Arabic
+`zero`/`two`/`few`/`many` are allowed. Branch message text remains visible to
+bidi and security analysis; only ICU syntax, selectors, braces, `#`, and nested
+placeholders are masked.
+
 ## What it checks
 
 Compared against the base culture:
@@ -281,7 +313,9 @@ Compared against the base culture:
 | Check | Severity | Meaning |
 | --- | --- | --- |
 | `MissingKey` | error | A key exists in the base file but not in this one |
-| `PlaceholderMismatch` | error | `{0}`, `{name}` placeholders differ from the base string |
+| `PlaceholderMismatch` | error | Placeholders differ from the base: missing, extra, renamed, or ICU branch structure |
+| `PlaceholderSyntax` | error | A placeholder is malformed or unclosed |
+| `PlaceholderType` | error | A placeholder's format specifier or argument type differs from the base |
 | `ExtraKey` | warning | A key here does not exist in the base file (dead text) |
 | `EmptyValue` | warning | The value is empty or whitespace |
 
@@ -361,12 +395,12 @@ samples/storefront/ar.json:1:114  warning  ExtraKey  offer.old
   Key does not exist in en; it may be dead text.
 samples/storefront/ar.json:1:152  error    PlaceholderMismatch  products.count
   Placeholders differ from en: expected [{0}], found [].
-  Base value. samples/storefront/en.json:1:184
+  Base value. samples/storefront/en.json:1:185
 samples/storefront/ar.json:1:166  warning  MixedNumerals  products.count
   Found Western digits (0-9) and Arabic-Indic digits (٠-٩) in one string; pick one numeral system per string.
 samples/storefront/ar.json:1:190  error    PlaceholderMismatch  products.discount
   Placeholders differ from en: expected [{0}, {1}], found [{0}].
-  Base value. samples/storefront/en.json:1:210
+  Base value. samples/storefront/en.json:1:225
 samples/storefront/ar.json:1:240  error    UnbalancedIsolates  promo.broken
   Unclosed LRI (U+2066); it runs to the end of the value. Add a matching PDI (U+2069) after the isolated text.
 samples/storefront/ar.json:1:345  warning  UnisolatedLatin  skills.stack
@@ -376,7 +410,7 @@ samples/storefront/ar.json:1:360  warning  UnisolatedLatin  skills.stack
   Latin run "C#" is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir="ltr".
   logical: "C#"; paragraph level 1 (RTL), run levels 2 (LTR), 1 (RTL)
 
-BidiLint 0.6.1: 2 file(s), base en, 18 entries — 4 error(s), 5 warning(s) in 72 ms.
+BidiLint 0.7.0: 2 file(s), base en, 18 entries — 4 error(s), 5 warning(s) in 72 ms.
 ```
 
 Elapsed time varies between runs.
@@ -435,19 +469,21 @@ characters for display. `range` remains the source span.
   files. `Tatweel` defaults to `warning`; set it to `info` or `off` when
   kashida is an intentional typographic choice. Presentation-form and
   normalization findings can be baselined, like lint rules.
-- PO plural forms are flattened. Languages with different plural counts will
-  report `ExtraKey` on their additional forms until the plural-aware rule
-  engine lands in 0.7.
+- PO plural forms are flattened into `msgid[0]`, `msgid[1]`, and so on.
+  Languages with different plural counts still report `ExtraKey` on their
+  additional forms until flattened plural groups are paired in 0.7.x.
 - JSON plural arrays are flattened into `key[0]`, `key[1]`, and so on and
   compared branch by branch. A singular branch that legitimately omits a count
-  placeholder can still report `PlaceholderMismatch` until the plural-aware
-  comparison lands in 0.7.
-- ARB ICU plurals are read correctly as strings, but placeholder comparison is
-  still the simple braced-token scanner; ICU-aware placeholders are scheduled
-  for 0.7.
-- Only `auto`, `braced`, `dotnet`, and `none` are accepted for
-  `placeholderDialects`. ICU, printf, and i18next parsing is scheduled for
-  0.7; BidiLint does not pretend to analyze those dialects yet.
+  placeholder can still report `PlaceholderMismatch` until flattened plural
+  groups are paired in 0.7.x. ICU messages inside a single JSON or ARB value
+  are compared with the ICU AST.
+- ICU comparison checks argument names, required `other`, select branch parity,
+  and nested placeholders. It does not yet validate that every plural category
+  is legal for the target culture; that CLDR-category check is planned for
+  0.7.x.
+- Auto-detection is heuristic. Set `placeholderDialects` explicitly when a
+  value is ambiguous, especially when literal double braces are not
+  placeholders.
 - If both `Base.lproj` and an explicit base culture (for example
   `en.lproj`) exist, both map to the base and duplicate keys are reported.
 - JSON and `.resx` currently have no implicit cross-format merge. Use an
@@ -458,8 +494,8 @@ characters for display. `range` remains the source span.
 
 ## Roadmap
 
-The detailed plan from the current 0.6 foundation to a production-ready 1.0 —
-the placeholder AST, SARIF, safe auto-fix, and release gates — lives in
+The detailed plan from the current 0.7 foundation to a production-ready 1.0 -
+flattened plural groups, SARIF, safe auto-fix, and release gates - lives in
 [ROADMAP.md](ROADMAP.md).
 
 ## Development

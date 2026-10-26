@@ -1,5 +1,55 @@
 # Changelog
 
+## [0.7.0] - 2026-10-26
+
+### Added
+
+- Added a placeholder AST with dialect adapters for .NET composite
+  (`{0}`, `{0:N2}`, escaped `{{`/`}}`, named arguments), ICU MessageFormat 1
+  (`plural`, `select`, `selectordinal`, `#`, `=0`, `offset:`, apostrophe
+  escaping, nested placeholders), printf (`%s`, `%1$s`, `%d`, `%%`,
+  `%(name)s`, `%@`), i18next/Angular/Mustache (`{{name}}`), Rails
+  (`%{name}`), and JavaScript templates (`${name}`).
+- Added `PlaceholderSyntax` for malformed or unclosed placeholders and
+  `PlaceholderType` for format-specifier or argument-type differences. Both
+  are configurable, baselinable, and documented in the generated rule catalog.
+- Placeholder comparison now compares names as a multiset instead of raw
+  source strings, reports missing and extra arguments with target and related
+  base spans, and checks ICU select branch parity, the required `other` branch,
+  and nested placeholders inside branches. Plural categories may differ by
+  language, so Arabic `zero`/`two`/`few`/`many` branches are accepted.
+- ICU branch message text remains visible to bidi, numeral, normalization, and
+  security analysis. Only ICU argument syntax, selectors, braces, `#`, and
+  nested placeholders are masked.
+
+### Changed
+
+- `placeholderDialects` now accepts `auto`, `dotnet` (alias `braced`), `icu`,
+  `printf`, `i18next`, `angular`, `rails`, `javascript`, `mustache` (alias
+  `handlebars`), and `none`. `auto` uses the format default (.resx -> .NET,
+  ARB -> ICU, Android/Apple/PO -> printf, JSON -> detection). Selecting more
+  than one specific dialect is a config error because a message is never
+  parsed as two dialects at once.
+- `PlaceholderMismatch` no longer treats escaped .NET braces or ICU syntax as
+  raw placeholder names. Existing JSON/text report fields are unchanged.
+
+### Deferred
+
+- Flattened JSON/Android/PO plural groups still compare branch by branch, so
+  additional plural forms can still produce `ExtraKey` and a singular branch
+  that omits the count can still produce `PlaceholderMismatch` until the
+  0.7.x plural-group slice.
+- Per-path dialect overrides, CLDR plural-category validation per culture,
+  markup parity, value/glossary rules, and auto-fix remain later milestones.
+
+### Tests
+
+- Added 24 placeholder tests covering escaped braces, .NET format differences,
+  missing `{1}`, printf positional/type/missing cases, ICU plural/select/
+  apostrophe/nested cases, ICU branch bidi masking, i18next spacing, Rails,
+  JavaScript, Nextcloud brace tags, syntax errors, config disabling, and every
+  explicit dialect. The full suite is now 392 tests.
+
 ## [0.6.1] - 2026-10-26
 
 ### Fixed

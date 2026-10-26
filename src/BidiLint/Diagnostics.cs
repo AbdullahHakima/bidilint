@@ -64,6 +64,8 @@ public static class DiagnosticCodes
     public const string ExtraKey = nameof(ExtraKey);
     public const string EmptyValue = nameof(EmptyValue);
     public const string PlaceholderMismatch = nameof(PlaceholderMismatch);
+    public const string PlaceholderSyntax = nameof(PlaceholderSyntax);
+    public const string PlaceholderType = nameof(PlaceholderType);
     public const string UnisolatedLatin = nameof(UnisolatedLatin);
     public const string MixedNumerals = nameof(MixedNumerals);
     public const string PresentationForm = nameof(PresentationForm);

@@ -130,27 +130,48 @@ public static class Linter
 
             if (config.PlaceholderDialect == PlaceholderDialect.None) continue;
 
-            var basePlaceholders = BidiScanner.Placeholders(baseEntry.Value);
-            var placeholders = BidiScanner.Placeholders(entry.Value);
-            if (!basePlaceholders.SequenceEqual(placeholders))
-            {
-                result.Diagnostics.Add(new Diagnostic(
-                    DiagnosticCodes.PlaceholderMismatch,
-                    DiagnosticSeverity.Error,
-                    $"Placeholders differ from {baseSet.Culture}: expected [{string.Join(", ", basePlaceholders)}], found [{string.Join(", ", placeholders)}].",
-                    entry.Document.FilePath,
-                    entry.Span,
-                    set.Culture,
-                    key,
-                    new[]
-                    {
-                        new RelatedDiagnostic(
-                            "Base value.",
-                            baseEntry.Document.FilePath,
-                            baseEntry.Span,
-                            key),
-                    }));
-            }
+            var baseMessage = PlaceholderParser.Parse(
+                baseEntry.Value,
+                baseSet.PrimaryDocument.Format,
+                config.PlaceholderDialect);
+            var targetMessage = PlaceholderParser.Parse(
+                entry.Value,
+                set.PrimaryDocument.Format,
+                config.PlaceholderDialect);
+            if (baseMessage.HasIssues || targetMessage.HasIssues) continue;
+
+            var comparison = PlaceholderComparer.Compare(baseMessage, targetMessage);
+            if (comparison.IsMatch) continue;
+
+            var code = comparison.Kind == PlaceholderDifferenceKind.Type
+                ? DiagnosticCodes.PlaceholderType
+                : DiagnosticCodes.PlaceholderMismatch;
+            var verb = comparison.Kind == PlaceholderDifferenceKind.Type
+                ? "Placeholder type or format differs"
+                : "Placeholders differ";
+            var targetSpan = comparison.TargetToken is { } targetToken
+                ? MapSpan(entry, targetToken.Start, targetToken.Length)
+                : entry.Span;
+            var baseSpan = comparison.BaseToken is { } baseToken
+                ? MapSpan(baseEntry, baseToken.Start, baseToken.Length)
+                : baseEntry.Span;
+
+            result.Diagnostics.Add(new Diagnostic(
+                code,
+                DiagnosticSeverity.Error,
+                $"{verb} from {baseSet.Culture}: expected [{comparison.Expected}], found [{comparison.Found}].",
+                entry.Document.FilePath,
+                targetSpan,
+                set.Culture,
+                key,
+                new[]
+                {
+                    new RelatedDiagnostic(
+                        "Base value.",
+                        baseEntry.Document.FilePath,
+                        baseSpan,
+                        key),
+                }));
         }
 
         foreach (var key in set.Entries.Keys.OrderBy(k => k, StringComparer.Ordinal))
@@ -183,6 +204,26 @@ public static class Linter
                     set.Culture,
                     entry.Key));
                 continue;
+            }
+
+            if (config.PlaceholderDialect != PlaceholderDialect.None &&
+                PlaceholderParser.MightContain(entry.Value))
+            {
+                var placeholderMessage = PlaceholderParser.Parse(
+                    entry.Value,
+                    set.PrimaryDocument.Format,
+                    config.PlaceholderDialect);
+                foreach (var issue in placeholderMessage.Issues)
+                {
+                    result.Diagnostics.Add(new Diagnostic(
+                        DiagnosticCodes.PlaceholderSyntax,
+                        DiagnosticSeverity.Error,
+                        issue.Message,
+                        entry.Document.FilePath,
+                        MapSpan(entry, issue.Start, issue.Length),
+                        set.Culture,
+                        entry.Key));
+                }
             }
 
             var scan = BidiScanner.Scan(entry.Value);
@@ -231,13 +272,16 @@ public static class Linter
         }
     }
 
-    private static SourceSpan? MapSpan(LocaleEntry entry, ValueFinding finding)
+    private static SourceSpan? MapSpan(LocaleEntry entry, ValueFinding finding) =>
+        MapSpan(entry, finding.Start, finding.Length);
+
+    private static SourceSpan? MapSpan(LocaleEntry entry, int start, int length)
     {
         if (entry.ValueMap is not null)
         {
             try
             {
-                return entry.ValueMap.Map(finding.Start, finding.Length);
+                return entry.ValueMap.Map(start, length);
             }
             catch (ArgumentOutOfRangeException)
             {

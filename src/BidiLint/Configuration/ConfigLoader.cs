@@ -775,41 +775,68 @@ internal static class ConfigLoader
         var values = ReadStringArray(properties, "placeholderDialects", errors);
         if (values.Count == 0) return PlaceholderDialect.Auto;
 
-        var dialect = PlaceholderDialect.Auto;
+        var selected = new List<PlaceholderDialect>();
+        var hasAuto = false;
+        var hasNone = false;
         foreach (var value in values)
         {
             switch (value.ToLowerInvariant())
             {
                 case "auto":
+                    hasAuto = true;
                     break;
                 case "braced":
                 case "dotnet":
-                    dialect = PlaceholderDialect.Braced;
-                    break;
-                case "none":
-                    dialect = PlaceholderDialect.None;
+                    selected.Add(PlaceholderDialect.DotNet);
                     break;
                 case "icu":
+                    selected.Add(PlaceholderDialect.Icu);
+                    break;
                 case "printf":
+                    selected.Add(PlaceholderDialect.Printf);
+                    break;
                 case "i18next":
+                    selected.Add(PlaceholderDialect.I18Next);
+                    break;
                 case "angular":
-                    errors.Add(
-                        $"placeholderDialects: \"{value}\" is recognized but not implemented until 0.7.0.");
+                    selected.Add(PlaceholderDialect.Angular);
+                    break;
+                case "rails":
+                    selected.Add(PlaceholderDialect.Rails);
+                    break;
+                case "javascript":
+                    selected.Add(PlaceholderDialect.JavaScript);
+                    break;
+                case "mustache":
+                case "handlebars":
+                    selected.Add(PlaceholderDialect.Mustache);
+                    break;
+                case "none":
+                    hasNone = true;
                     break;
                 default:
                     errors.Add(
-                        $"placeholderDialects: unknown dialect \"{value}\". Use auto, braced, dotnet, or none.");
+                        $"placeholderDialects: unknown dialect \"{value}\". Use auto, dotnet, icu, printf, i18next, angular, rails, javascript, mustache, or none.");
                     break;
             }
         }
 
-        if (dialect == PlaceholderDialect.None && values.Any(value =>
-                !value.Equals("none", StringComparison.OrdinalIgnoreCase)))
+        if (hasNone && (hasAuto || selected.Count > 0))
         {
             errors.Add("placeholderDialects cannot combine none with another dialect.");
+            return PlaceholderDialect.None;
         }
 
-        return dialect;
+        if (hasNone) return PlaceholderDialect.None;
+        if (hasAuto) return PlaceholderDialect.Auto;
+
+        var distinct = selected.Distinct().ToArray();
+        if (distinct.Length == 0) return PlaceholderDialect.Auto;
+        if (distinct.Length == 1) return distinct[0];
+
+        errors.Add(
+            "placeholderDialects must select one dialect, or use auto. A message is never parsed as more than one dialect.");
+        return PlaceholderDialect.Auto;
     }
 
     private static NumeralPolicy ReadNumeralPolicy(
