@@ -16,7 +16,15 @@ internal sealed class JsonFileAdapter : ILocaleAdapter
         var stem = Path.GetFileNameWithoutExtension(path);
         if (!CultureTag.TryParse(stem, out var tag)) return null;
 
-        return new LocaleIdentity(path, tag!.Name, "json", LocaleFormat.Json);
+        // The culture is carried by the file name, so the containing directory
+        // identifies the logical resource set. Using one global "json" set
+        // merges unrelated locale trees and produces false KeyCollision errors.
+        var segments = LocalePath.Segments(workingDirectory, path);
+        var resourceSet = segments.Length <= 1
+            ? "."
+            : string.Join('/', segments.Take(segments.Length - 1));
+
+        return new LocaleIdentity(path, tag!.Name, resourceSet, LocaleFormat.Json);
     }
 
     public LocaleDocument? Load(LocaleIdentity identity, List<Diagnostic> diagnostics)

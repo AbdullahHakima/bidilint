@@ -152,6 +152,45 @@ public class AdapterTests
     }
 
     [Fact]
+    public void CultureNamedJsonFiles_UseTheirDirectoryAsTheResourceSet()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("apps/files/l10n/en.json", """{ "Cancel": "Cancel" }""");
+        workspace.Write("apps/files/l10n/ar.json", """{ "Cancel": "إلغاء" }""");
+        workspace.Write("apps/settings/l10n/en.json", """{ "Cancel": "Cancel" }""");
+        workspace.Write("apps/settings/l10n/ar.json", """{ "Cancel": "إلغاء" }""");
+
+        var load = workspace.Load();
+        var lint = Linter.Lint(load, "en");
+
+        Assert.Empty(load.Diagnostics);
+        Assert.Equal(
+            ["apps/files/l10n", "apps/settings/l10n"],
+            load.Documents
+                .Select(document => document.ResourceSet)
+                .Distinct()
+                .Order(StringComparer.Ordinal)
+                .ToArray());
+        Assert.DoesNotContain(lint.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.KeyCollision);
+    }
+
+    [Fact]
+    public void RootLevelCultureNamedJsonFiles_UseTheRootResourceSet()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "greeting": "Hello" }""");
+        workspace.Write("ar.json", """{ "greeting": "مرحبا" }""");
+
+        var load = workspace.Load();
+        var lint = Linter.Lint(load, "en");
+
+        Assert.Empty(load.Diagnostics);
+        Assert.All(load.Documents, document => Assert.Equal(".", document.ResourceSet));
+        Assert.Empty(lint.Diagnostics);
+    }
+
+    [Fact]
     public void EachFormat_IsComparedInsideItsOwnResourceSet()
     {
         var root = Fixture("json-layout");

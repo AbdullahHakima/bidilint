@@ -65,7 +65,7 @@ jobs:
         run: dotnet pack src/BidiLint/BidiLint.csproj -c Release -o artifacts
 
       - name: Install the packed tool
-        run: dotnet tool install --global BidiLint --add-source "$GITHUB_WORKSPACE/artifacts" --version 0.6.0
+        run: dotnet tool install --global BidiLint --add-source "$GITHUB_WORKSPACE/artifacts" --version 0.6.1
 
       - name: Verify package contents
         run: |
@@ -73,7 +73,7 @@ jobs:
           import zipfile
           from pathlib import Path
 
-          package = next(Path("artifacts").glob("BidiLint.0.6.0.nupkg"))
+          package = next(Path("artifacts").glob("BidiLint.0.6.1.nupkg"))
           with zipfile.ZipFile(package) as archive:
               names = set(archive.namelist())
           required = {"schema/bidilint.schema.json", "docs/rules/README.md", "docs/conformance.md", "README.md"}
@@ -97,7 +97,7 @@ jobs:
 
           report = json.loads(Path("report.json").read_text(encoding="utf-8"))
           assert report["tool"] == "BidiLint", report
-          assert report["version"] == "0.6.0", report
+          assert report["version"] == "0.6.1", report
           assert report["errors"] == 4, report
           assert report["warnings"] == 5, report
           assert report["findings"], report

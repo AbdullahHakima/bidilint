@@ -2,7 +2,7 @@
 
 > **From a working prototype to a production localization linter teams keep in CI.**
 >
-> Current release: **0.6.0** (2026-10-26) · Target: **1.0.0** · Last reviewed: 2026-10-26
+> Current release: **0.6.1** (2026-10-26) · Target: **1.0.0** · Last reviewed: 2026-10-26
 
 ---
 
@@ -60,16 +60,17 @@ Production is not "more rules". It means all of the following are true:
 | 0.4.0 | Format adapters for JSON culture dirs, Android, Apple `.strings`, gettext PO/POT, and Flutter ARB; layout-aware resource sets; format-specific diagnostics and fixtures |
 | 0.5.0 | JSONC config and schema, custom layouts/files, rule metadata and generated docs, reasoned ignores, baselines, CI thresholds, quiet/color/debug output |
 | 0.6.0 | Unicode 17.0.0 bidi data and UAX #9 resolver, script/culture direction detection, isolation and control rewrite, numeral/normalization rules, Trojan Source security rules, RTL fixture corpus, golden outputs, and a 100k-entry CI benchmark |
+| 0.6.1 | Field validation on Nextcloud RTL locale trees; culture-named JSON files use their containing directory as the resource set, fixing cross-app `KeyCollision` false positives; field-validation record; no rule-policy changes |
 
 Verified on 2026-10-26: `dotnet build`, `dotnet test`, and `dotnet format
---verify-no-changes` succeed; **366 tests pass**; the storefront sample reports
+--verify-no-changes` succeed; **368 tests pass**; the storefront sample reports
 4 errors and 5 warnings; the resx sample reports 1 error and 2 warnings; the
 packed tool installs and runs in CI. Six locale formats now share one
 span-aware document model. The 0.6 engine passes the full Unicode 17.0.0
 `BidiTest` and `BidiCharacterTest` suites, and the 100k-entry benchmark
 completes inside the CI budget.
 
-### Honest audit after 0.6.0
+### Honest audit after 0.6.1
 
 The foundation, the common format adapters, the adoption layer, and the bidi
 engine are in place. The remaining gaps below drive the next phases.
