@@ -186,6 +186,34 @@ public class PluralGroupTests
     }
 
     [Fact]
+    public void GenericJsonArray_WithNextcloudSeparatorButWrongKeyShape_IsStillAnIndexedList()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "colors_::_palette": ["red", "green"] }""");
+        workspace.Write("ar.json", """{ "colors_::_palette": ["أحمر", "أخضر", "أزرق"] }""");
+
+        var result = workspace.Lint();
+        var finding = Assert.Single(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.ExtraKey);
+
+        Assert.Equal("colors_::_palette[2]", finding.Key);
+    }
+
+    [Fact]
+    public void GenericJsonArray_WithDoubleColon_MissingTargetItem_IsStillAMissingKey()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """{ "colors::palette": ["red", "green", "blue"] }""");
+        workspace.Write("ar.json", """{ "colors::palette": ["أحمر", "أخضر"] }""");
+
+        var result = workspace.Lint();
+        var finding = Assert.Single(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.MissingKey);
+
+        Assert.Equal("colors::palette[2]", finding.Key);
+    }
+
+    [Fact]
     public void JsonPluralArray_RepeatedPlaceholder_ReportsTheBranchWithTheExtraOccurrence()
     {
         using var workspace = new TestWorkspace();
@@ -243,6 +271,97 @@ public class PluralGroupTests
 
         Assert.EndsWith("[1]", finding.Key, StringComparison.Ordinal);
         Assert.Contains("count (plural", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void JsonPluralArray_IcuVariantSwap_IsReported()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, one {name} other {name}}",
+                  "{count, plural, one {other} few {other} other {other}}"
+                ]
+              }
+            }
+            """);
+        workspace.Write("ar.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, one {other} other {other}}",
+                  "{count, plural, one {name} few {name} other {name}}"
+                ]
+              }
+            }
+            """);
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.PlaceholderMismatch);
+    }
+
+    [Fact]
+    public void JsonPluralArray_IcuExtraPlaceholderInOneVariant_IsReported()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, one {name} other {name}}",
+                  "{count, plural, one {other} few {other} other {other}}"
+                ]
+              }
+            }
+            """);
+        workspace.Write("ar.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, one {name} other {name}}",
+                  "{count, plural, one {name} few {other} other {other}}"
+                ]
+              }
+            }
+            """);
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.PlaceholderMismatch);
+    }
+
+    [Fact]
+    public void JsonPluralArray_IcuExtraCategoryWithWrongNestedPlaceholder_IsReported()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, one {# for {name}} other {# for {name}}}"
+                ]
+              }
+            }
+            """);
+        workspace.Write("ar.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, zero {# for {wrong}} one {# for {name}} few {# for {name}} other {# for {name}}}"
+                ]
+              }
+            }
+            """);
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.PlaceholderMismatch);
     }
 
     [Fact]

@@ -62,33 +62,86 @@ internal static class PlaceholderComparer
 
         foreach (var baseGroup in baseShape.Groups)
         {
-            if (!targetGroups.TryGetValue(baseGroup.Name, out var candidates) ||
-                candidates.FirstOrDefault(candidate => !matchedTargetGroups.Contains(candidate)) is not { } targetGroup)
+            if (!targetGroups.TryGetValue(baseGroup.Name, out var candidates))
             {
-                return new PlaceholderComparison(
-                    PlaceholderDifferenceKind.Mismatch,
-                    Display(baseShape),
-                    Display(targetShape),
-                    baseGroup.Token,
-                    null);
+                return GroupMissing(baseShape, targetShape, baseGroup);
             }
 
-            matchedTargetGroups.Add(targetGroup);
-
-            if (baseGroup.Kind != targetGroup.Kind)
-            {
-                return new PlaceholderComparison(
-                    PlaceholderDifferenceKind.Type,
-                    Display(baseShape),
-                    Display(targetShape),
-                    baseGroup.Token,
-                    targetGroup.Token);
-            }
+            var available = candidates
+                .Where(candidate => !matchedTargetGroups.Contains(candidate))
+                .ToList();
+            if (available.Count == 0)
+                return GroupMissing(baseShape, targetShape, baseGroup);
 
             if (baseGroup.Kind == PlaceholderArgumentKind.Select)
             {
-                if (!baseGroup.Selectors.ToHashSet(StringComparer.Ordinal)
-                        .SetEquals(targetGroup.Selectors))
+                var exact = available
+                    .Where(candidate =>
+                        candidate.Kind == PlaceholderArgumentKind.Select &&
+                        baseGroup.Selectors.ToHashSet(StringComparer.Ordinal)
+                            .SetEquals(candidate.Selectors))
+                    .ToList();
+                if (exact.Count == 0)
+                {
+                    return new PlaceholderComparison(
+                        PlaceholderDifferenceKind.Mismatch,
+                        Display(baseShape),
+                        Display(targetShape),
+                        baseGroup.Token,
+                        available[0].Token);
+                }
+
+                foreach (var targetGroup in exact)
+                {
+                    matchedTargetGroups.Add(targetGroup);
+                    var difference = CompareExactGroup(baseShape, targetShape, baseGroup, targetGroup);
+                    if (difference is not null) return difference;
+                }
+
+                var unexpected = available.FirstOrDefault(candidate => !exact.Contains(candidate));
+                if (unexpected is not null)
+                {
+                    return new PlaceholderComparison(
+                        PlaceholderDifferenceKind.Mismatch,
+                        Display(baseShape),
+                        Display(targetShape),
+                        baseGroup.Token,
+                        unexpected.Token);
+                }
+
+                continue;
+            }
+
+            var exactPlural = available
+                .Where(candidate =>
+                    candidate.Kind == baseGroup.Kind &&
+                    baseGroup.Selectors.ToHashSet(StringComparer.Ordinal)
+                        .SetEquals(candidate.Selectors))
+                .ToList();
+            foreach (var targetGroup in exactPlural)
+            {
+                matchedTargetGroups.Add(targetGroup);
+                var difference = CompareExactGroup(baseShape, targetShape, baseGroup, targetGroup);
+                if (difference is not null) return difference;
+            }
+
+            var remaining = available
+                .Where(candidate => !exactPlural.Contains(candidate))
+                .ToList();
+            foreach (var targetGroup in remaining)
+            {
+                matchedTargetGroups.Add(targetGroup);
+                if (targetGroup.Kind != baseGroup.Kind)
+                {
+                    return new PlaceholderComparison(
+                        PlaceholderDifferenceKind.Type,
+                        Display(baseShape),
+                        Display(targetShape),
+                        baseGroup.Token,
+                        targetGroup.Token);
+                }
+
+                if (!targetGroup.Selectors.Contains("other", StringComparer.Ordinal))
                 {
                     return new PlaceholderComparison(
                         PlaceholderDifferenceKind.Mismatch,
@@ -97,42 +150,24 @@ internal static class PlaceholderComparer
                         baseGroup.Token,
                         targetGroup.Token);
                 }
-            }
-            else if (!targetGroup.Selectors.Contains("other", StringComparer.Ordinal))
-            {
-                return new PlaceholderComparison(
-                    PlaceholderDifferenceKind.Mismatch,
-                    Display(baseShape),
-                    Display(targetShape),
-                    baseGroup.Token,
-                    targetGroup.Token);
+
+                // An unmatched variant is an extra target plural category. It
+                // may omit a base placeholder, but it must not introduce a new
+                // one; otherwise a cross-variant swap would go unnoticed.
+                var extra = FindExtraName(baseGroup.NestedUses, targetGroup.NestedUses);
+                if (extra is not null)
+                {
+                    return new PlaceholderComparison(
+                        PlaceholderDifferenceKind.Mismatch,
+                        Display(baseShape),
+                        Display(targetShape),
+                        baseGroup.Token,
+                        extra);
+                }
             }
 
-            var nestedNameDifference = CompareNames(
-                baseGroup.NestedUses,
-                targetGroup.NestedUses);
-            if (nestedNameDifference is not null)
-            {
-                return new PlaceholderComparison(
-                    PlaceholderDifferenceKind.Mismatch,
-                    Display(baseShape),
-                    Display(targetShape),
-                    nestedNameDifference.Value.Base ?? baseGroup.Token,
-                    nestedNameDifference.Value.Target ?? targetGroup.Token);
-            }
-
-            var nestedFormatDifference = CompareFormats(
-                baseGroup.NestedUses,
-                targetGroup.NestedUses);
-            if (nestedFormatDifference is not null)
-            {
-                return new PlaceholderComparison(
-                    PlaceholderDifferenceKind.Type,
-                    Display(baseShape),
-                    Display(targetShape),
-                    nestedFormatDifference.Value.Base ?? baseGroup.Token,
-                    nestedFormatDifference.Value.Target ?? targetGroup.Token);
-            }
+            if (exactPlural.Count == 0 && remaining.Count == 0)
+                return GroupMissing(baseShape, targetShape, baseGroup);
         }
 
         foreach (var targetGroup in targetShape.Groups)
@@ -158,6 +193,106 @@ internal static class PlaceholderComparer
             Display(targetShape),
             null,
             null);
+    }
+
+    private static PlaceholderComparison GroupMissing(
+        PlaceholderShape baseShape,
+        PlaceholderShape targetShape,
+        PlaceholderGroup baseGroup) =>
+        new(
+            PlaceholderDifferenceKind.Mismatch,
+            Display(baseShape),
+            Display(targetShape),
+            baseGroup.Token,
+            null);
+
+    private static PlaceholderComparison? CompareExactGroup(
+        PlaceholderShape baseShape,
+        PlaceholderShape targetShape,
+        PlaceholderGroup baseGroup,
+        PlaceholderGroup targetGroup)
+    {
+        if (baseGroup.Kind != targetGroup.Kind)
+        {
+            return new PlaceholderComparison(
+                PlaceholderDifferenceKind.Type,
+                Display(baseShape),
+                Display(targetShape),
+                baseGroup.Token,
+                targetGroup.Token);
+        }
+
+        if (baseGroup.Kind == PlaceholderArgumentKind.Select)
+        {
+            if (!baseGroup.Selectors.ToHashSet(StringComparer.Ordinal)
+                    .SetEquals(targetGroup.Selectors))
+            {
+                return new PlaceholderComparison(
+                    PlaceholderDifferenceKind.Mismatch,
+                    Display(baseShape),
+                    Display(targetShape),
+                    baseGroup.Token,
+                    targetGroup.Token);
+            }
+        }
+        else if (!targetGroup.Selectors.Contains("other", StringComparer.Ordinal))
+        {
+            return new PlaceholderComparison(
+                PlaceholderDifferenceKind.Mismatch,
+                Display(baseShape),
+                Display(targetShape),
+                baseGroup.Token,
+                targetGroup.Token);
+        }
+
+        var nestedNameDifference = CompareNames(
+            baseGroup.NestedUses,
+            targetGroup.NestedUses);
+        if (nestedNameDifference is not null)
+        {
+            return new PlaceholderComparison(
+                PlaceholderDifferenceKind.Mismatch,
+                Display(baseShape),
+                Display(targetShape),
+                nestedNameDifference.Value.Base ?? baseGroup.Token,
+                nestedNameDifference.Value.Target ?? targetGroup.Token);
+        }
+
+        var nestedFormatDifference = CompareFormats(
+            baseGroup.NestedUses,
+            targetGroup.NestedUses);
+        if (nestedFormatDifference is not null)
+        {
+            return new PlaceholderComparison(
+                PlaceholderDifferenceKind.Type,
+                Display(baseShape),
+                Display(targetShape),
+                nestedFormatDifference.Value.Base ?? baseGroup.Token,
+                nestedFormatDifference.Value.Target ?? targetGroup.Token);
+        }
+
+        return null;
+    }
+
+    private static PlaceholderToken? FindExtraName(
+        IReadOnlyList<PlaceholderUse> baseUses,
+        IReadOnlyList<PlaceholderUse> targetUses)
+    {
+        var remaining = baseUses.Select(use => use.Name).ToList();
+        foreach (var use in targetUses)
+        {
+            var index = remaining.IndexOf(use.Name);
+            if (index >= 0)
+            {
+                remaining.RemoveAt(index);
+            }
+            else
+            {
+                return use.Token;
+            }
+        }
+
+        return null;
     }
 
     private static PlaceholderShape MergeShapes(IEnumerable<PlaceholderShape> shapes)
@@ -221,7 +356,6 @@ internal static class PlaceholderComparer
         var maxCounts = new Dictionary<string, int>(StringComparer.Ordinal);
         var representatives = new Dictionary<string, PlaceholderGroup>(StringComparer.Ordinal);
         var nestedUses = new Dictionary<string, List<IReadOnlyList<PlaceholderUse>>>(StringComparer.Ordinal);
-        var selectorSets = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
 
         foreach (var groups in groupLists)
         {
@@ -237,12 +371,6 @@ internal static class PlaceholderComparer
                     nestedUses.Add(key, nested);
                 }
                 nested.Add(group.NestedUses);
-                if (!selectorSets.TryGetValue(key, out var selectors))
-                {
-                    selectors = new HashSet<string>(StringComparer.Ordinal);
-                    selectorSets.Add(key, selectors);
-                }
-                foreach (var selector in group.Selectors) selectors.Add(selector);
             }
 
             foreach (var (key, count) in localCounts)
@@ -254,15 +382,12 @@ internal static class PlaceholderComparer
         {
             var representative = representatives[key];
             var mergedNested = MergeUses(nestedUses[key]);
-            var selectors = selectorSets[key]
-                .Order(StringComparer.Ordinal)
-                .ToArray();
             for (var index = 0; index < count; index++)
             {
                 merged.Add(new PlaceholderGroup(
                     representative.Name,
                     representative.Kind,
-                    selectors,
+                    representative.Selectors,
                     mergedNested,
                     representative.Token));
             }
@@ -274,14 +399,10 @@ internal static class PlaceholderComparer
     private static string UseSignature(PlaceholderUse use) =>
         use.Name + "\u0000" + (use.Format ?? string.Empty);
 
-    private static string GroupSignature(PlaceholderGroup group)
-    {
-        var signature = group.Name + "\u0000" + (int)group.Kind;
-        return group.Kind == PlaceholderArgumentKind.Select
-            ? signature + "\u0000" +
-              string.Join("\u0000", group.Selectors.Order(StringComparer.Ordinal))
-            : signature;
-    }
+    private static string GroupSignature(PlaceholderGroup group) =>
+        group.Name + "\u0000" +
+        (int)group.Kind + "\u0000" +
+        string.Join("\u0000", group.Selectors.Order(StringComparer.Ordinal));
 
     private static (PlaceholderToken? Base, PlaceholderToken? Target)? CompareNames(
         IReadOnlyList<PlaceholderUse> baseUses,

@@ -478,9 +478,9 @@ characters for display. `range` remains the source span.
   kashida is an intentional typographic choice. Presentation-form and
   normalization findings can be baselined, like lint rules.
 - Flattened plural groups are paired for Nextcloud-style JSON arrays whose key
-  contains `::`, Android `<plurals>`, and gettext plural forms. Additional
-  target categories are accepted instead of reported as `ExtraKey`, and
-  placeholder parity is compared over the union of non-empty branches so a
+  contains the `_::_` separator, Android `<plurals>`, and gettext plural forms.
+  Additional target categories are accepted instead of reported as `ExtraKey`,
+  and placeholder parity is compared over the union of non-empty branches so a
   singular branch may omit the count. A placeholder missing from every branch
   is still reported. Generic JSON arrays and Android `<string-array>` remain
   indexed lists and still report extra items.

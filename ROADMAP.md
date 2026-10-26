@@ -65,7 +65,7 @@ Production is not "more rules". It means all of the following are true:
 | 0.7.1 | Flattened plural-group pairing for Nextcloud-style JSON arrays, Android `<plurals>`, and gettext `msgstr[n]`; group-level placeholder union; extra plural forms no longer produce `ExtraKey`; named Android groups still require `other`; field-corpus verification |
 
 Verified on 2026-10-26: `dotnet build`, `dotnet test`, and `dotnet format
---verify-no-changes` succeed; **412 tests pass**; the storefront sample reports
+--verify-no-changes` succeed; **417 tests pass**; the storefront sample reports
 4 errors and 5 warnings; the resx sample reports 1 error and 2 warnings; the
 packed tool installs and runs in CI. Six locale formats now share one
 span-aware document model. The 0.6 engine passes the full Unicode 17.0.0

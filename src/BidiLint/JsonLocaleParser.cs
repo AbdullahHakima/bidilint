@@ -184,7 +184,9 @@ internal sealed class JsonLocaleParser
     }
 
     private static bool IsPluralArrayKey(string key) =>
-        key.Contains("_::_", StringComparison.Ordinal);
+        key.Contains("_::_", StringComparison.Ordinal) &&
+        key.EndsWith('_') &&
+        (key.StartsWith('_') || key.Contains("._", StringComparison.Ordinal));
 
     private void ParseValue(
         ref Utf8JsonReader reader,

@@ -14,10 +14,10 @@
   omit the count without producing a false `PlaceholderMismatch`.
 - Named Android plural groups still require the CLDR-mandated `other` category;
   a group missing `other` reports `MissingKey` for that branch.
-- Added 20 regressions covering Nextcloud Persian/Hebrew/Arabic plural
-  shapes, nested ICU categories, repeated placeholders, Android and PO groups,
-  generic arrays, bidi analysis, empty branches, placeholder syntax, POT
-  templates, and PO per-form spans.
+- Added 25 regressions covering Nextcloud Persian/Hebrew/Arabic plural
+  shapes, nested ICU categories, cross-variant swaps, repeated placeholders,
+  Android and PO groups, generic arrays, bidi analysis, empty branches,
+  placeholder syntax, POT templates, and PO per-form spans.
 
 ### Fixed
 
@@ -51,7 +51,7 @@
 
 ### Tests
 
-- The full suite is now 412 tests. The Nextcloud field corpus was re-run:
+- The full suite is now 417 tests. The Nextcloud field corpus was re-run:
   core 422 findings (262 errors / 160 warnings), settings 1,777 (983 / 794),
   and the five-app set 1,963 (1,122 / 841). The only removed findings were the
   known flattened-plural `ExtraKey` and `PlaceholderMismatch` false positives;
