@@ -14,9 +14,10 @@
   omit the count without producing a false `PlaceholderMismatch`.
 - Named Android plural groups still require the CLDR-mandated `other` category;
   a group missing `other` reports `MissingKey` for that branch.
-- Added 14 regressions covering Nextcloud Persian/Hebrew/Arabic plural shapes,
-  dropped placeholders, format differences, Android and PO groups, generic
-  arrays, bidi analysis, empty branches, and placeholder syntax.
+- Added 20 regressions covering Nextcloud Persian/Hebrew/Arabic plural
+  shapes, nested ICU categories, repeated placeholders, Android and PO groups,
+  generic arrays, bidi analysis, empty branches, placeholder syntax, POT
+  templates, and PO per-form spans.
 
 ### Fixed
 
@@ -26,9 +27,21 @@
   omits the count placeholder, including the Nextcloud
   `_%n app has an update available_::_%n apps have an update available_` and
   `_%n folder_::_%n folders_` arrays.
+- Nested ICU placeholders now use the maximum multiplicity per branch, so an
+  extra target plural category may repeat `{name}` without a false mismatch.
+  Same-name plural variants are merged before nested comparison.
+- POT plural templates now use `msgid_plural` for non-zero forms instead of
+  repeating the singular `msgid`.
+- An Android group missing `other` now reports only `MissingKey`; the
+  remaining branches are not compared as a union.
+- PO plural diagnostics use the span of the form that contains the offending
+  placeholder, not always `msgstr[0]`.
 
 ### Changed
 
+- JSON arrays are paired as plural groups only when the key contains the
+  Nextcloud `_::_` separator. Generic `colors::palette` arrays and arrays under
+  a `namespace::thing` parent remain indexed lists.
 - Generic JSON string arrays and Android `<string-array>` remain indexed lists
   and still report extra target items as `ExtraKey`.
 - A placeholder missing from every branch of a plural group is still reported;
@@ -38,7 +51,7 @@
 
 ### Tests
 
-- The full suite is now 406 tests. The Nextcloud field corpus was re-run:
+- The full suite is now 412 tests. The Nextcloud field corpus was re-run:
   core 422 findings (262 errors / 160 warnings), settings 1,777 (983 / 794),
   and the five-app set 1,963 (1,122 / 841). The only removed findings were the
   known flattened-plural `ExtraKey` and `PlaceholderMismatch` false positives;

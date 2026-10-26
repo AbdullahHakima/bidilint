@@ -277,6 +277,12 @@ public static class Linter
         {
             if (!targetGroups.TryGetValue(groupKey, out var targetGroup)) continue;
 
+            // A named Android group missing "other" already has a MissingKey
+            // diagnostic. Comparing the remaining branches as a union would
+            // add a second, misleading placeholder finding.
+            if (baseGroup.OtherEntry is not null && targetGroup.OtherEntry is null)
+                continue;
+
             var baseMessages = ParseGroup(baseGroup, config);
             var targetMessages = ParseGroup(targetGroup, config);
             if (baseMessages.Count == 0 || targetMessages.Count == 0) continue;

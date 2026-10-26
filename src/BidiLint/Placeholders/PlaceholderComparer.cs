@@ -172,7 +172,7 @@ internal static class PlaceholderComparer
         IEnumerable<IReadOnlyList<PlaceholderUse>> useLists)
     {
         var maxCounts = new Dictionary<string, int>(StringComparer.Ordinal);
-        var representatives = new Dictionary<string, PlaceholderUse>(StringComparer.Ordinal);
+        var representatives = new Dictionary<string, IReadOnlyList<PlaceholderUse>>(StringComparer.Ordinal);
 
         foreach (var uses in useLists)
         {
@@ -181,19 +181,35 @@ internal static class PlaceholderComparer
             {
                 var key = UseSignature(use);
                 localCounts[key] = localCounts.GetValueOrDefault(key) + 1;
-                representatives.TryAdd(key, use);
             }
 
             foreach (var (key, count) in localCounts)
-                maxCounts[key] = Math.Max(maxCounts.GetValueOrDefault(key), count);
+            {
+                if (count <= maxCounts.GetValueOrDefault(key)) continue;
+
+                maxCounts[key] = count;
+                representatives[key] = uses;
+            }
         }
 
         var merged = new List<PlaceholderUse>();
         foreach (var (key, count) in maxCounts.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
-            var representative = representatives[key];
+            var uses = representatives[key];
+            var matching = uses
+                .Where(use => string.Equals(UseSignature(use), key, StringComparison.Ordinal))
+                .Take(count)
+                .ToList();
+            if (matching.Count == count)
+            {
+                merged.AddRange(matching);
+                continue;
+            }
+
+            // Defensive fallback; the representative list produced the count.
+            var fallback = matching.FirstOrDefault() ?? uses[0];
             for (var index = 0; index < count; index++)
-                merged.Add(representative);
+                merged.Add(fallback);
         }
 
         return merged;
@@ -205,6 +221,7 @@ internal static class PlaceholderComparer
         var maxCounts = new Dictionary<string, int>(StringComparer.Ordinal);
         var representatives = new Dictionary<string, PlaceholderGroup>(StringComparer.Ordinal);
         var nestedUses = new Dictionary<string, List<IReadOnlyList<PlaceholderUse>>>(StringComparer.Ordinal);
+        var selectorSets = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
 
         foreach (var groups in groupLists)
         {
@@ -220,6 +237,12 @@ internal static class PlaceholderComparer
                     nestedUses.Add(key, nested);
                 }
                 nested.Add(group.NestedUses);
+                if (!selectorSets.TryGetValue(key, out var selectors))
+                {
+                    selectors = new HashSet<string>(StringComparer.Ordinal);
+                    selectorSets.Add(key, selectors);
+                }
+                foreach (var selector in group.Selectors) selectors.Add(selector);
             }
 
             foreach (var (key, count) in localCounts)
@@ -231,12 +254,15 @@ internal static class PlaceholderComparer
         {
             var representative = representatives[key];
             var mergedNested = MergeUses(nestedUses[key]);
+            var selectors = selectorSets[key]
+                .Order(StringComparer.Ordinal)
+                .ToArray();
             for (var index = 0; index < count; index++)
             {
                 merged.Add(new PlaceholderGroup(
                     representative.Name,
                     representative.Kind,
-                    representative.Selectors,
+                    selectors,
                     mergedNested,
                     representative.Token));
             }
@@ -248,10 +274,14 @@ internal static class PlaceholderComparer
     private static string UseSignature(PlaceholderUse use) =>
         use.Name + "\u0000" + (use.Format ?? string.Empty);
 
-    private static string GroupSignature(PlaceholderGroup group) =>
-        group.Name + "\u0000" +
-        (int)group.Kind + "\u0000" +
-        string.Join("\u0000", group.Selectors.Order(StringComparer.Ordinal));
+    private static string GroupSignature(PlaceholderGroup group)
+    {
+        var signature = group.Name + "\u0000" + (int)group.Kind;
+        return group.Kind == PlaceholderArgumentKind.Select
+            ? signature + "\u0000" +
+              string.Join("\u0000", group.Selectors.Order(StringComparer.Ordinal))
+            : signature;
+    }
 
     private static (PlaceholderToken? Base, PlaceholderToken? Target)? CompareNames(
         IReadOnlyList<PlaceholderUse> baseUses,
@@ -374,18 +404,20 @@ internal static class PlaceholderComparer
             PlaceholderToken token,
             List<PlaceholderGroup> groups)
         {
-            var nested = new List<PlaceholderUse>();
+            var branchUses = new List<IReadOnlyList<PlaceholderUse>>();
             var branches = token.Branches ?? [];
             foreach (var branch in branches)
             {
+                var nested = new List<PlaceholderUse>();
                 CollectNested(branch.Tokens, nested, groups);
+                branchUses.Add(nested);
             }
 
             return new PlaceholderGroup(
                 token.Name,
                 token.ArgumentKind,
                 branches.Select(branch => branch.Selector).ToArray(),
-                nested,
+                MergeUses(branchUses),
                 token);
         }
 

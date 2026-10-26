@@ -7,8 +7,9 @@ namespace BidiLint;
 //   locale/<culture>/LC_MESSAGES/messages.po
 //   locale/messages.pot
 // The msgid is the key; msgctxt, when present, is prefixed with "|".
-// Plural forms are flattened to key[0], key[1], … until the plurals-aware
-// comparison planned for 0.7. POT templates use msgid as the base value.
+// Plural forms are flattened to key[0], key[1], … and paired by group for
+// placeholder comparison. POT templates use msgid for form 0 and msgid_plural
+// for the other forms.
 internal sealed class PoAdapter : ILocaleAdapter
 {
     public LocaleIdentity? Identify(
@@ -185,6 +186,7 @@ internal sealed class PoAdapter : ILocaleAdapter
 
                             builder.Append(value);
                             _current = builder;
+                            _entry.FormLines.TryAdd(form, lineNumber);
                             if (form == 0) _entry.ValueLine = lineNumber;
                             break;
                         }
@@ -231,15 +233,21 @@ internal sealed class PoAdapter : ILocaleAdapter
 
                 if (_entry.Forms.Count > 0)
                 {
+                    var pluralId = _entry.PluralId?.ToString() ?? msgid;
                     foreach (var form in _entry.Forms.OrderBy(pair => pair.Key))
                     {
                         var value = form.Value.ToString();
-                        if (_isTemplate && value.Length == 0) value = msgid;
+                        if (_isTemplate && value.Length == 0)
+                            value = form.Key == 0 ? msgid : pluralId;
+                        var formSpan = SpanAt(
+                            _entry.FormLines.TryGetValue(form.Key, out var formLine)
+                                ? formLine
+                                : _entry.ValueLine > 0 ? _entry.ValueLine : _entry.IdLine);
                         AddEntry(
                             $"{keyPrefix}[{form.Key}]",
                             value,
                             keySpan,
-                            span,
+                            formSpan,
                             new PluralFormInfo(
                                 keyPrefix,
                                 form.Key.ToString(CultureInfo.InvariantCulture),
@@ -369,6 +377,7 @@ internal sealed class PoAdapter : ILocaleAdapter
             public StringBuilder? PluralId;
             public StringBuilder? Value;
             public Dictionary<int, StringBuilder> Forms { get; } = new();
+            public Dictionary<int, int> FormLines { get; } = new();
             public int IdLine;
             public int ValueLine;
 
@@ -383,6 +392,7 @@ internal sealed class PoAdapter : ILocaleAdapter
                 PluralId = null;
                 Value = null;
                 Forms.Clear();
+                FormLines.Clear();
                 IdLine = 0;
                 ValueLine = 0;
             }

@@ -16,12 +16,11 @@ against the same corpus.
 | Five apps (`comments`, `dashboard`, `files`, `settings`, `sharing`) | 17 | 4,773 | 1,995 | 2,006 | 1,963 | 1,122 | 841 |
 
 All runs used `--base en_GB --no-config`. No run crashed, produced an unreadable
-path, or reported a malformed file. The 0.7.0 delta was entirely
-`PlaceholderMismatch`: seven newly detected dropped printf arguments and four
-deferred flattened-plural branches. The 0.7.1 delta removed only the known
-flattened-plural false positives: 13 findings in core, 15 in settings, and 43
-in the five-app run. Bidi and security counts are unchanged from 0.7.0, and no
-new findings were introduced.
+path, or reported a malformed file. The 0.7.0 placeholder parser found seven
+real dropped printf arguments and also produced flattened-plural false
+positives. The 0.7.1 delta removed only those plural false positives: 13
+findings in core, 15 in settings, and 43 in the five-app run. Bidi and security
+counts are unchanged from 0.7.0, and no new findings were introduced.
 
 ## Triage
 
