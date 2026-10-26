@@ -69,6 +69,8 @@
         "ExtraKey": { "$ref": "#/$defs/ruleSetting" },
         "EmptyValue": { "$ref": "#/$defs/ruleSetting" },
         "PlaceholderMismatch": { "$ref": "#/$defs/ruleSetting" },
+        "PlaceholderSyntax": { "$ref": "#/$defs/ruleSetting" },
+        "PlaceholderType": { "$ref": "#/$defs/ruleSetting" },
         "UnisolatedLatin": { "$ref": "#/$defs/termRuleSetting" },
         "MixedNumerals": { "$ref": "#/$defs/ruleSetting" },
         "PresentationForm": { "$ref": "#/$defs/ruleSetting" },
@@ -111,8 +113,8 @@
     },
     "placeholderDialects": {
       "type": "array",
-      "items": { "enum": ["auto", "braced", "dotnet", "none"] },
-      "description": "Placeholder syntaxes to understand. auto and braced use the current braced-token scanner; none disables placeholder comparison."
+      "items": { "enum": ["auto", "braced", "dotnet", "icu", "printf", "i18next", "angular", "rails", "javascript", "mustache", "handlebars", "none"] },
+      "description": "Placeholder syntax to understand. auto infers a dialect from the format and value; dotnet, icu, printf, i18next, angular, rails, javascript, and mustache select one explicitly; none disables placeholder comparison."
     },
     "numeralPolicy": {
       "enum": ["mixed", "allow", "western", "arabic-indic", "extended-arabic-indic"],

@@ -10,7 +10,14 @@ internal enum FailOn
 internal enum PlaceholderDialect
 {
     Auto,
-    Braced,
+    DotNet,
+    Icu,
+    Printf,
+    I18Next,
+    Angular,
+    Rails,
+    JavaScript,
+    Mustache,
     None,
 }
 

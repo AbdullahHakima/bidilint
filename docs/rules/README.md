@@ -23,6 +23,8 @@ This file is generated from `RuleCatalog` and checked by a test.
 | [`NumberAdjacency`](#numberadjacency) | warning | bidi | no | 0.6.0 | yes |
 | [`PathNotFound`](#pathnotfound) | error | discovery | no | 0.3.0 | no |
 | [`PlaceholderMismatch`](#placeholdermismatch) | error | placeholder | no | 0.1.0 | yes |
+| [`PlaceholderSyntax`](#placeholdersyntax) | error | placeholder | no | 0.7.0 | yes |
+| [`PlaceholderType`](#placeholdertype) | error | placeholder | no | 0.7.0 | yes |
 | [`PresentationForm`](#presentationform) | warning | unicode | no | 0.6.0 | yes |
 | [`StaleBaseline`](#stalebaseline) | warning | configuration | no | 0.5.0 | no |
 | [`StaleSuppression`](#stalesuppression) | warning | configuration | no | 0.5.0 | no |
@@ -183,6 +185,22 @@ This is a load, format, or configuration diagnostic. It cannot be suppressed or 
 The placeholders in a translated value differ from the base value.
 
 Suppress with an `ignore` entry, or change the severity under `rules.PlaceholderMismatch`.
+
+## PlaceholderSyntax
+
+**Placeholder syntax** · error · placeholder · since 0.7.0
+
+A placeholder is malformed or unclosed. Fix the syntax before comparing placeholders against the base value.
+
+Suppress with an `ignore` entry, or change the severity under `rules.PlaceholderSyntax`.
+
+## PlaceholderType
+
+**Placeholder type** · error · placeholder · since 0.7.0
+
+The placeholder name is present, but its format specifier or argument type differs from the base value.
+
+Suppress with an `ignore` entry, or change the severity under `rules.PlaceholderType`.
 
 ## PresentationForm
 

@@ -35,7 +35,7 @@ internal sealed class ContentMask
         IReadOnlySet<string> isolationWrappers,
         out MarkupScanResult markup)
     {
-        var placeholders = BidiScanner.PlaceholderSpans(value).ToList();
+        var placeholders = PlaceholderMask.Spans(value).ToList();
 
         // Placeholders are opaque to the markup scanner: a tag-looking sequence
         // inside one is data, not an element that isolates later text.
