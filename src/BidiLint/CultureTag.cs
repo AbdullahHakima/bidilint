@@ -24,6 +24,17 @@ public sealed record CultureTag(
         "Arab", "Hebr", "Syrc", "Thaa", "Nkoo", "Samr", "Mand", "Adlm", "Rohg",
     };
 
+    // CLDR cardinal languages whose only plural category is "other". This is a
+    // narrow check for one-form i18next targets, not full CLDR category
+    // validation; an unrecognized language is treated conservatively as
+    // multi-form.
+    private static readonly HashSet<string> SinglePluralCategoryLanguages = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "bm", "bo", "dz", "hnj", "id", "ig", "ii", "ja", "jbo", "jv", "jw",
+        "kde", "kea", "km", "ko", "lkt", "lo", "ms", "my", "nqo", "osa",
+        "sah", "ses", "sg", "su", "th", "to", "tpi", "wo", "yo", "yue", "zh",
+    };
+
     private static readonly Lazy<HashSet<string>> KnownLanguages = new(BuildKnownLanguages);
 
     public static bool TryParse(string? value, out CultureTag? tag)
@@ -109,6 +120,10 @@ public sealed record CultureTag(
 
     public static bool IsRtl(string culture) =>
         TryParse(culture, out var tag) && tag!.IsRightToLeft;
+
+    internal static bool UsesSinglePluralForm(string culture) =>
+        TryParse(culture, out var tag) &&
+        SinglePluralCategoryLanguages.Contains(tag!.Language);
 
     private static bool IsRegion(string part) =>
         (part.Length == 2 && part.All(IsAsciiLetter)) ||

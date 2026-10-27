@@ -67,4 +67,20 @@ public class CultureTagTests
         Assert.Equal(expected, CultureTag.IsRtl(value));
         Assert.Equal(expected, Linter.IsRtl(value));
     }
+
+    [Theory]
+    [InlineData("ja", true)]
+    [InlineData("zh-Hant", true)]
+    [InlineData("ko", true)]
+    [InlineData("th", true)]
+    [InlineData("id", true)]
+    [InlineData("ms", true)]
+    [InlineData("en", false)]
+    [InlineData("ru", false)]
+    [InlineData("ar", false)]
+    [InlineData("vi", false)]
+    public void UsesSinglePluralForm_RecognizesOneFormLanguages(string value, bool expected)
+    {
+        Assert.Equal(expected, CultureTag.UsesSinglePluralForm(value));
+    }
 }

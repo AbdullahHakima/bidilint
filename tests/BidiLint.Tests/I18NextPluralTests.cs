@@ -278,6 +278,70 @@ public class I18NextPluralTests
         var loneLoad = loneWorkspace.Load();
         var lone = Assert.Single(loneLoad.Documents);
         Assert.Null(lone.Entries["lone_one"].Plural);
+
+        using var loneOtherWorkspace = new TestWorkspace();
+        loneOtherWorkspace.Write("en.json", """
+            {
+              "phone_other": "phones"
+            }
+            """);
+        var loneOtherLoad = loneOtherWorkspace.Load();
+        var loneOther = Assert.Single(loneOtherLoad.Documents);
+        Assert.Null(loneOther.Entries["phone_other"].Plural);
+    }
+
+    [Fact]
+    public void JsonI18NextPluralSuffix_OtherAloneInMultiFormCultureIsIncomplete()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            {
+              "item_one": "{{count}} item",
+              "item_other": "{{count}} items"
+            }
+            """);
+        workspace.Write("ru.json", """
+            {
+              "item_other": "{{count}} предмет"
+            }
+            """);
+
+        var load = workspace.Load();
+        var ru = Assert.Single(load.Documents, document => document.Culture == "ru");
+        Assert.Null(ru.Entries["item_other"].Plural);
+
+        var result = workspace.Lint();
+        var missing = Assert.Single(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.MissingKey);
+        Assert.Equal("item_one", missing.Key);
+        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.ExtraKey);
+    }
+
+    [Fact]
+    public void JsonI18NextPluralSuffix_BaseOrdinaryOtherDoesNotAcceptOneSibling()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            {
+              "phone_other": "phones"
+            }
+            """);
+        workspace.Write("ar.json", """
+            {
+              "phone_one": "هاتف واحد",
+              "phone_other": "هواتف"
+            }
+            """);
+
+        var load = workspace.Load();
+        var en = Assert.Single(load.Documents, document => document.Culture == "en");
+        Assert.Null(en.Entries["phone_other"].Plural);
+
+        var result = workspace.Lint();
+        var extra = Assert.Single(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.ExtraKey);
+        Assert.Equal("phone_one", extra.Key);
     }
 
     [Fact]
@@ -305,6 +369,30 @@ public class I18NextPluralTests
         AssertNoPluralStructuralFindings(result);
         Assert.DoesNotContain(result.Diagnostics, diagnostic =>
             diagnostic.Code is DiagnosticCodes.PlaceholderMismatch or DiagnosticCodes.PlaceholderType);
+    }
+
+    [Fact]
+    public void JsonI18NextPluralSuffix_OneFormBaseOtherIsAGroup()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("ja.json", """
+            {
+              "phone_other": "電話"
+            }
+            """);
+        workspace.Write("ar.json", """
+            {
+              "phone_one": "هاتف واحد",
+              "phone_other": "هواتف"
+            }
+            """);
+
+        var load = workspace.Load();
+        var ja = Assert.Single(load.Documents, document => document.Culture == "ja");
+        Assert.Equal("phone", ja.Entries["phone_other"].Plural!.GroupKey);
+
+        var result = workspace.Lint();
+        AssertNoPluralStructuralFindings(result);
     }
 
     [Fact]

@@ -260,7 +260,7 @@ compared against its own base.
 
 | Format | Discovery and resource-set examples |
 | --- | --- |
-| **JSON, culture-named file** | `en.json`, `ar-EG.json`. Nested objects and arrays flatten to dotted/indexed keys (`checkout.payNow`, `items[0].label`). Arrays under a Nextcloud-style `_singular_::_plural_` key are paired as plural groups; other arrays remain indexed lists. i18next v4 suffix keys (`item_one`/`item_other`) are paired when the same object has `_other`; a lone `_other` is a one-form group. Files that are not named like a culture (`app.json`) are ignored unless mapped in `files`. |
+| **JSON, culture-named file** | `en.json`, `ar-EG.json`. Nested objects and arrays flatten to dotted/indexed keys (`checkout.payNow`, `items[0].label`). Arrays under a Nextcloud-style `_singular_::_plural_` key are paired as plural groups; other arrays remain indexed lists. i18next v4 suffix keys (`item_one`/`item_other`) are paired when the same object has `_other`; a lone `_other` is a one-form group for recognized one-form cultures. Files that are not named like a culture (`app.json`) are ignored unless mapped in `files`. |
 | **JSON, culture directory** | `locales/en/translation.json`, `web/locales/ar/common.json`. The culture must sit directly below a conventional layout folder (`locales`, `locale`, `i18n`, `lang`, `languages`, `translations`, `messages`, `intl`, `resources`, `po`) or a configured `layouts` name. |
 | **.resx** | `Strings.resx` (base), `Strings.ar.resx` (Arabic). Non-string resources are skipped. `Errors.resx` and `Strings.resx` are separate sets. |
 | **Android** | `app/src/main/res/values/strings.xml` (base), `res/values-ar/strings.xml`, `res/values-b+ar+EG/strings.xml`, `res/values-ar-rEG/strings.xml`. `<plurals>` becomes `key[one]`, `key[other]` and is paired as a plural group; `<string-array>` becomes `key[0]`, `key[1]` and remains an indexed list. Non-locale qualifiers (`values-night`, `values-sw600dp`) are ignored. |
@@ -311,9 +311,10 @@ gettext plural forms, and i18next v4 suffix keys are paired by group. i18next
 grouping applies to `_zero`, `_one`, `_two`, `_few`, `_many`, and `_other`
 string values when the same object contains `_other`; nested objects use the
 full parent path, for example `cart.item`. A lone `_other` is a one-form group
-for languages with a single plural category, while a lone `_one` remains an
-ordinary key. Additional target
-categories are accepted instead of reported as `ExtraKey`. Placeholder names
+only for recognized one-form cultures, while a lone `_one` remains an ordinary
+key. In a multi-form culture, a lone `_other` stays incomplete and missing base
+categories are still reported. Additional target categories are accepted
+instead of reported as `ExtraKey`. Placeholder names
 and format/type signatures are compared over the union of non-empty branches,
 so a singular branch may omit the count while a placeholder missing from every
 branch is still reported. Exact ICU selector variants are compared first;
@@ -487,8 +488,12 @@ characters for display. `range` remains the source span.
 - Flattened plural groups are paired for Nextcloud-style JSON arrays whose key
   has the `_::_` shape, Android `<plurals>`, gettext plural forms, and i18next
   v4 suffix keys. i18next grouping requires a sibling `_other`; a lone `_one`
-  key remains ordinary, while a lone `_other` is a valid one-form group. Custom
-  i18next plural separators and v3 `_plural`/numeric forms are not grouped yet.
+  key remains ordinary, while a lone `_other` is a one-form group only for
+  recognized one-form cultures. In a multi-form culture a lone `_other` remains
+  incomplete, so missing base categories are reported. In a recognized one-form
+  culture a lone `_other` is treated as plural even if it was intended as an
+  ordinary key; full CLDR category validation is planned. Custom i18next plural
+  separators and v3 `_plural`/numeric forms are not grouped yet.
   Additional target categories are accepted instead of reported as `ExtraKey`,
   and placeholder parity is compared over the union of non-empty branches so a
   singular branch may omit the count. A placeholder missing from every branch
