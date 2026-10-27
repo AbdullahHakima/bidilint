@@ -74,9 +74,11 @@ additional forms and `PlaceholderMismatch` for the omitted count.
 
 BidiLint 0.7.1 now marks these arrays as one plural group and compares the
 union of non-empty branches. Additional target forms are accepted, and a
-placeholder missing from every branch is still reported. Android `<plurals>`
-and gettext `msgstr[n]` groups use the same comparison. Named Android groups
-still require `other`.
+placeholder missing from every branch is still reported. Nested ICU groups
+inside those branches use the same union rules; exact selector variants are
+compared first, and unmatched extra categories are checked against the base
+union. Android `<plurals>` and gettext `msgstr[n]` groups use the same
+comparison. Named Android groups still require `other`.
 
 The field run removed 13 findings in core (one deferred placeholder finding and
 12 `ExtraKey`), 15 in settings (two deferred placeholder findings and 13

@@ -311,8 +311,10 @@ and gettext plural forms are paired by group. Additional target categories are
 accepted instead of reported as `ExtraKey`. Placeholder names and format/type
 signatures are compared over the union of non-empty branches, so a singular
 branch may omit the count while a placeholder missing from every branch is
-still reported. Generic JSON arrays and Android `<string-array>` are not plural
-groups and keep their indexed `ExtraKey` behavior.
+still reported. Exact ICU selector variants are compared first; unmatched
+extra categories are checked against the base union. Generic JSON arrays and
+Android `<string-array>` are not plural groups and keep indexed `ExtraKey` and
+`MissingKey` behavior.
 
 ## What it checks
 
@@ -478,14 +480,18 @@ characters for display. `range` remains the source span.
   kashida is an intentional typographic choice. Presentation-form and
   normalization findings can be baselined, like lint rules.
 - Flattened plural groups are paired for Nextcloud-style JSON arrays whose key
-  contains the `_::_` separator, Android `<plurals>`, and gettext plural forms.
+  has the `_::_` shape, Android `<plurals>`, and gettext plural forms.
   Additional target categories are accepted instead of reported as `ExtraKey`,
   and placeholder parity is compared over the union of non-empty branches so a
   singular branch may omit the count. A placeholder missing from every branch
-  is still reported. Generic JSON arrays and Android `<string-array>` remain
-  indexed lists and still report extra items.
+  is still reported. Exact ICU selector variants are compared first; unmatched
+  extra categories are checked against the base union. Generic JSON arrays and
+  Android `<string-array>` remain indexed lists and still report extra and
+  missing items.
 - Branch-specific placeholder drops inside a plural group are not reported
-  individually yet; the group-level union is the 0.7.1 contract. CLDR plural
+  individually yet, and cross-variant swaps between variants with identical
+  selector sets are still invisible because those variants are merged before
+  nested comparison. The group-level union is the 0.7.1 contract. CLDR plural
   category validation per culture is still planned for 0.7.x.
 - ICU messages inside a single JSON or ARB value are compared with the ICU AST.
   ICU comparison checks argument names, required `other`, select branch parity,

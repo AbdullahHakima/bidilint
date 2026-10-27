@@ -274,15 +274,15 @@ public class PluralGroupTests
     }
 
     [Fact]
-    public void JsonPluralArray_IcuVariantSwap_IsReported()
+    public void JsonPluralArray_IcuExtraCategoryWithNestedPlaceholder_IsAllowed()
     {
         using var workspace = new TestWorkspace();
         workspace.Write("en.json", """
             {
               "translations": {
                 "_one_::_other_": [
-                  "{count, plural, one {name} other {name}}",
-                  "{count, plural, one {other} few {other} other {other}}"
+                  "{count, plural, one {# file for {name}} other {# files for {name}}}",
+                  "{count, plural, one {# file for {name}} other {# files for {name}}}"
                 ]
               }
             }
@@ -291,8 +291,38 @@ public class PluralGroupTests
             {
               "translations": {
                 "_one_::_other_": [
-                  "{count, plural, one {other} other {other}}",
-                  "{count, plural, one {name} few {name} other {name}}"
+                  "{count, plural, zero {لا ملفات لـ {name}} one {# ملف لـ {name}} few {# ملفات لـ {name}} other {# ملف لـ {name}}}",
+                  "{count, plural, one {# ملف لـ {name}} other {# ملف لـ {name}}}"
+                ]
+              }
+            }
+            """);
+
+        var result = workspace.Lint();
+
+        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
+            diagnostic.Code is DiagnosticCodes.PlaceholderMismatch or DiagnosticCodes.PlaceholderType);
+    }
+
+    [Fact]
+    public void JsonPluralArray_IcuMissingPlaceholderAcrossAllVariants_IsReported()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, one {{name}} other {{name}}}",
+                  "{count, plural, one {{other}} few {{other}} other {{other}}}"
+                ]
+              }
+            }
+            """);
+        workspace.Write("ar.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, one {{other}} few {{other}} other {{other}}}"
                 ]
               }
             }
@@ -305,15 +335,15 @@ public class PluralGroupTests
     }
 
     [Fact]
-    public void JsonPluralArray_IcuExtraPlaceholderInOneVariant_IsReported()
+    public void JsonPluralArray_IcuVariantSwap_IsReported()
     {
         using var workspace = new TestWorkspace();
         workspace.Write("en.json", """
             {
               "translations": {
                 "_one_::_other_": [
-                  "{count, plural, one {name} other {name}}",
-                  "{count, plural, one {other} few {other} other {other}}"
+                  "{count, plural, one {{name}} other {{name}}}",
+                  "{count, plural, one {{other}} few {{other}} other {{other}}}"
                 ]
               }
             }
@@ -322,8 +352,101 @@ public class PluralGroupTests
             {
               "translations": {
                 "_one_::_other_": [
-                  "{count, plural, one {name} other {name}}",
-                  "{count, plural, one {name} few {other} other {other}}"
+                  "{count, plural, one {{other}} other {{other}}}",
+                  "{count, plural, one {{name}} few {{name}} other {{name}}}"
+                ]
+              }
+            }
+            """);
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.PlaceholderMismatch);
+    }
+
+    [Fact]
+    public void JsonPluralArray_IcuIdenticalMultiVariantGroups_AreNotReported()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, one {#} other {#}}",
+                  "{count, plural, one {#} few {#} other {#}}"
+                ]
+              }
+            }
+            """);
+        workspace.Write("ar.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, one {#} other {#}}",
+                  "{count, plural, one {#} few {#} other {#}}"
+                ]
+              }
+            }
+            """);
+
+        var result = workspace.Lint();
+
+        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
+            diagnostic.Code is DiagnosticCodes.PlaceholderMismatch or DiagnosticCodes.PlaceholderType);
+    }
+
+    [Fact]
+    public void JsonPluralArray_IcuMultiVariantGroups_PairIdenticalVariants()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, one {{name}} other {{name}}}",
+                  "{count, plural, one {{other}} few {{other}} other {{other}}}"
+                ]
+              }
+            }
+            """);
+        workspace.Write("ar.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, one {{name}} other {{name}}}",
+                  "{count, plural, one {{other}} few {{other}} other {{other}}}"
+                ]
+              }
+            }
+            """);
+
+        var result = workspace.Lint();
+
+        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
+            diagnostic.Code is DiagnosticCodes.PlaceholderMismatch or DiagnosticCodes.PlaceholderType);
+    }
+
+    [Fact]
+    public void JsonPluralArray_IcuExtraPlaceholderInOneVariant_IsReported()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, one {{name}} other {{name}}}",
+                  "{count, plural, one {{other}} few {{other}} other {{other}}}"
+                ]
+              }
+            }
+            """);
+        workspace.Write("ar.json", """
+            {
+              "translations": {
+                "_one_::_other_": [
+                  "{count, plural, one {{name}} other {{name}}}",
+                  "{count, plural, one {{name}} few {{other}} other {{other}}}"
                 ]
               }
             }

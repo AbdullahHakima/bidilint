@@ -111,6 +111,23 @@ public class PlaceholderTests
     }
 
     [Fact]
+    public void IcuBranchContainingOnlyNestedPlaceholder_IsParsed()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            { "message": "{count, plural, one {{name}} other {{name}}}" }
+            """);
+        workspace.Write("ar.json", """
+            { "message": "{count, plural, one {{other}} other {{other}}}" }
+            """);
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.PlaceholderMismatch);
+    }
+
+    [Fact]
     public void IcuPluralExtraCategoryWithNestedPlaceholder_IsAllowed()
     {
         using var workspace = new TestWorkspace();

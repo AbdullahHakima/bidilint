@@ -55,136 +55,152 @@ internal static class PlaceholderComparer
                 formatDifference.Value.Target);
         }
 
-        var targetGroups = targetShape.Groups
+        var baseGroups = MergeGroupVariants(baseShape.Groups);
+        var targetGroups = MergeGroupVariants(targetShape.Groups);
+        var baseByName = baseGroups
             .GroupBy(group => group.Name, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
+        var targetByName = targetGroups
+            .GroupBy(group => group.Name, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.ToList(), StringComparer.Ordinal);
+        var matchedBaseGroups = new HashSet<PlaceholderGroup>();
         var matchedTargetGroups = new HashSet<PlaceholderGroup>();
 
-        foreach (var baseGroup in baseShape.Groups)
+        // Match exact selector variants globally first. Consuming a target
+        // variant while processing one base variant must not make an identical
+        // later base variant look missing.
+        foreach (var baseGroup in baseGroups)
         {
-            if (!targetGroups.TryGetValue(baseGroup.Name, out var candidates))
-            {
-                return GroupMissing(baseShape, targetShape, baseGroup);
-            }
+            var signature = GroupSignature(baseGroup);
+            var targetGroup = targetGroups.FirstOrDefault(candidate =>
+                !matchedTargetGroups.Contains(candidate) &&
+                string.Equals(GroupSignature(candidate), signature, StringComparison.Ordinal));
+            if (targetGroup is null) continue;
 
-            var available = candidates
-                .Where(candidate => !matchedTargetGroups.Contains(candidate))
-                .ToList();
-            if (available.Count == 0)
-                return GroupMissing(baseShape, targetShape, baseGroup);
-
-            if (baseGroup.Kind == PlaceholderArgumentKind.Select)
-            {
-                var exact = available
-                    .Where(candidate =>
-                        candidate.Kind == PlaceholderArgumentKind.Select &&
-                        baseGroup.Selectors.ToHashSet(StringComparer.Ordinal)
-                            .SetEquals(candidate.Selectors))
-                    .ToList();
-                if (exact.Count == 0)
-                {
-                    return new PlaceholderComparison(
-                        PlaceholderDifferenceKind.Mismatch,
-                        Display(baseShape),
-                        Display(targetShape),
-                        baseGroup.Token,
-                        available[0].Token);
-                }
-
-                foreach (var targetGroup in exact)
-                {
-                    matchedTargetGroups.Add(targetGroup);
-                    var difference = CompareExactGroup(baseShape, targetShape, baseGroup, targetGroup);
-                    if (difference is not null) return difference;
-                }
-
-                var unexpected = available.FirstOrDefault(candidate => !exact.Contains(candidate));
-                if (unexpected is not null)
-                {
-                    return new PlaceholderComparison(
-                        PlaceholderDifferenceKind.Mismatch,
-                        Display(baseShape),
-                        Display(targetShape),
-                        baseGroup.Token,
-                        unexpected.Token);
-                }
-
-                continue;
-            }
-
-            var exactPlural = available
-                .Where(candidate =>
-                    candidate.Kind == baseGroup.Kind &&
-                    baseGroup.Selectors.ToHashSet(StringComparer.Ordinal)
-                        .SetEquals(candidate.Selectors))
-                .ToList();
-            foreach (var targetGroup in exactPlural)
-            {
-                matchedTargetGroups.Add(targetGroup);
-                var difference = CompareExactGroup(baseShape, targetShape, baseGroup, targetGroup);
-                if (difference is not null) return difference;
-            }
-
-            var remaining = available
-                .Where(candidate => !exactPlural.Contains(candidate))
-                .ToList();
-            foreach (var targetGroup in remaining)
-            {
-                matchedTargetGroups.Add(targetGroup);
-                if (targetGroup.Kind != baseGroup.Kind)
-                {
-                    return new PlaceholderComparison(
-                        PlaceholderDifferenceKind.Type,
-                        Display(baseShape),
-                        Display(targetShape),
-                        baseGroup.Token,
-                        targetGroup.Token);
-                }
-
-                if (!targetGroup.Selectors.Contains("other", StringComparer.Ordinal))
-                {
-                    return new PlaceholderComparison(
-                        PlaceholderDifferenceKind.Mismatch,
-                        Display(baseShape),
-                        Display(targetShape),
-                        baseGroup.Token,
-                        targetGroup.Token);
-                }
-
-                // An unmatched variant is an extra target plural category. It
-                // may omit a base placeholder, but it must not introduce a new
-                // one; otherwise a cross-variant swap would go unnoticed.
-                var extra = FindExtraName(baseGroup.NestedUses, targetGroup.NestedUses);
-                if (extra is not null)
-                {
-                    return new PlaceholderComparison(
-                        PlaceholderDifferenceKind.Mismatch,
-                        Display(baseShape),
-                        Display(targetShape),
-                        baseGroup.Token,
-                        extra);
-                }
-            }
-
-            if (exactPlural.Count == 0 && remaining.Count == 0)
-                return GroupMissing(baseShape, targetShape, baseGroup);
+            matchedBaseGroups.Add(baseGroup);
+            matchedTargetGroups.Add(targetGroup);
+            var difference = CompareExactGroup(baseShape, targetShape, baseGroup, targetGroup);
+            if (difference is not null) return difference;
         }
 
-        foreach (var targetGroup in targetShape.Groups)
+        // Target groups that did not match an exact selector signature are
+        // either extra plural categories or invalid select/type variants.
+        foreach (var targetGroup in targetGroups)
         {
             if (matchedTargetGroups.Contains(targetGroup)) continue;
-            if (baseShape.Groups.Any(group =>
-                    string.Equals(group.Name, targetGroup.Name, StringComparison.Ordinal)))
+            if (!baseByName.TryGetValue(targetGroup.Name, out var baseCandidates))
+            {
+                return new PlaceholderComparison(
+                    PlaceholderDifferenceKind.Mismatch,
+                    Display(baseShape),
+                    Display(targetShape),
+                    null,
+                    targetGroup.Token);
+            }
+
+            var sameKind = baseCandidates
+                .Where(candidate => candidate.Kind == targetGroup.Kind)
+                .ToList();
+            if (sameKind.Count == 0)
+            {
+                return new PlaceholderComparison(
+                    PlaceholderDifferenceKind.Type,
+                    Display(baseShape),
+                    Display(targetShape),
+                    baseCandidates[0].Token,
+                    targetGroup.Token);
+            }
+
+            if (targetGroup.Kind == PlaceholderArgumentKind.Select)
+            {
+                return new PlaceholderComparison(
+                    PlaceholderDifferenceKind.Mismatch,
+                    Display(baseShape),
+                    Display(targetShape),
+                    sameKind[0].Token,
+                    targetGroup.Token);
+            }
+
+            if (!targetGroup.Selectors.Contains("other", StringComparer.Ordinal))
+            {
+                return new PlaceholderComparison(
+                    PlaceholderDifferenceKind.Mismatch,
+                    Display(baseShape),
+                    Display(targetShape),
+                    sameKind[0].Token,
+                    targetGroup.Token);
+            }
+
+            // Extra plural categories may omit a base placeholder but must not
+            // introduce a name absent from every base variant.
+            var baseUnion = MergeUses(sameKind.Select(group => group.NestedUses));
+            var extra = FindExtraName(baseUnion, targetGroup.NestedUses);
+            if (extra is not null)
+            {
+                return new PlaceholderComparison(
+                    PlaceholderDifferenceKind.Mismatch,
+                    Display(baseShape),
+                    Display(targetShape),
+                    sameKind[0].Token,
+                    extra);
+            }
+        }
+
+        // A base variant with no exact target is covered by a same-kind target
+        // plural group with "other"; otherwise the variant is missing.
+        foreach (var baseGroup in baseGroups)
+        {
+            if (matchedBaseGroups.Contains(baseGroup)) continue;
+            if (baseGroup.Kind != PlaceholderArgumentKind.Select &&
+                targetByName.TryGetValue(baseGroup.Name, out var targetCandidates) &&
+                targetCandidates.Any(candidate =>
+                    candidate.Kind == baseGroup.Kind &&
+                    candidate.Selectors.Contains("other", StringComparer.Ordinal)))
             {
                 continue;
             }
 
-            return new PlaceholderComparison(
-                PlaceholderDifferenceKind.Mismatch,
-                Display(baseShape),
-                Display(targetShape),
-                null,
-                targetGroup.Token);
+            return GroupMissing(baseShape, targetShape, baseGroup);
+        }
+
+        // The union check catches a placeholder absent from every target branch
+        // even when extra categories hide it from exact matching.
+        foreach (var baseGroup in baseGroups)
+        {
+            if (baseGroup.Kind == PlaceholderArgumentKind.Select) continue;
+            if (!targetByName.TryGetValue(baseGroup.Name, out var targetCandidates)) continue;
+            var sameKind = targetCandidates
+                .Where(candidate => candidate.Kind == baseGroup.Kind)
+                .ToList();
+            if (sameKind.Count == 0) continue;
+
+            var baseUnion = MergeUses(baseGroups
+                .Where(group =>
+                    string.Equals(group.Name, baseGroup.Name, StringComparison.Ordinal) &&
+                    group.Kind == baseGroup.Kind)
+                .Select(group => group.NestedUses));
+            var targetUnion = MergeUses(sameKind.Select(group => group.NestedUses));
+            var unionNameDifference = CompareNames(baseUnion, targetUnion);
+            if (unionNameDifference is not null)
+            {
+                return new PlaceholderComparison(
+                    PlaceholderDifferenceKind.Mismatch,
+                    Display(baseShape),
+                    Display(targetShape),
+                    unionNameDifference.Value.Base ?? baseGroup.Token,
+                    unionNameDifference.Value.Target ?? sameKind[0].Token);
+            }
+
+            var unionFormatDifference = CompareFormats(baseUnion, targetUnion);
+            if (unionFormatDifference is not null)
+            {
+                return new PlaceholderComparison(
+                    PlaceholderDifferenceKind.Type,
+                    Display(baseShape),
+                    Display(targetShape),
+                    unionFormatDifference.Value.Base ?? baseGroup.Token,
+                    unionFormatDifference.Value.Target ?? sameKind[0].Token);
+            }
         }
 
         return new PlaceholderComparison(
@@ -193,6 +209,26 @@ internal static class PlaceholderComparer
             Display(targetShape),
             null,
             null);
+    }
+
+    private static List<PlaceholderGroup> MergeGroupVariants(
+        IReadOnlyList<PlaceholderGroup> groups)
+    {
+        return groups
+            .GroupBy(GroupSignature, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var variants = group.ToList();
+                var representative = variants[0];
+                return new PlaceholderGroup(
+                    representative.Name,
+                    representative.Kind,
+                    representative.Selectors,
+                    MergeUses(variants.Select(variant => variant.NestedUses)),
+                    representative.Token);
+            })
+            .OrderBy(GroupSignature, StringComparer.Ordinal)
+            .ToList();
     }
 
     private static PlaceholderComparison GroupMissing(
