@@ -63,10 +63,10 @@ Production is not "more rules". It means all of the following are true:
 | 0.6.1 | Field validation on Nextcloud RTL locale trees; culture-named JSON files use their containing directory as the resource set, fixing cross-app `KeyCollision` false positives; field-validation record; no rule-policy changes |
 | 0.7.0 | Placeholder AST and dialect adapters for .NET composite, ICU MessageFormat 1, printf, i18next/Angular/Mustache, Rails, and JavaScript templates; escaped-brace and ICU false positives removed; `PlaceholderSyntax`/`PlaceholderType`; ICU branch text remains bidi-analyzed; config dialect expansion |
 | 0.7.1 | Flattened plural-group pairing for Nextcloud-style JSON arrays, Android `<plurals>`, and gettext `msgstr[n]`; group-level placeholder union; extra plural forms no longer produce `ExtraKey`; named Android groups still require `other`; field-corpus verification |
-| 0.7.2 | i18next v4 plural suffix key grouping (`_zero`, `_one`, `_two`, `_few`, `_many`, `_other`) at any JSON nesting depth; extra target categories reuse the group-level union; lone suffix keys, ARB, generic arrays, and Nextcloud arrays remain ordinary |
+| 0.7.2 | i18next v4 plural suffix key grouping (`_zero`, `_one`, `_two`, `_few`, `_many`, `_other`) at any JSON nesting depth; extra target categories reuse the group-level union; one-form `_other` targets work; lone `_one` keys, ARB, generic arrays, and Nextcloud arrays remain ordinary |
 
 Verified on 2026-10-27: `dotnet build`, `dotnet test`, and `dotnet format
---verify-no-changes` succeed; **431 tests pass**; the storefront sample reports
+--verify-no-changes` succeed; **434 tests pass**; the storefront sample reports
 4 errors and 5 warnings; the resx sample reports 1 error and 2 warnings; the
 packed tool installs and runs in CI. Six locale formats now share one
 span-aware document model. The 0.6 engine passes the full Unicode 17.0.0

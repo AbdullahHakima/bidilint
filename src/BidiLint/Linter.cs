@@ -145,8 +145,11 @@ public static class Linter
                 continue;
             }
 
-            // Plural placeholder parity is checked once for the whole group.
-            if (basePlural is not null) continue;
+            // Plural placeholder parity is checked once for the whole group
+            // only when the target group exists. If the target is missing the
+            // group (for example it has _one but no _other), the surviving
+            // branches still need ordinary per-entry comparison.
+            if (basePlural is not null && targetGroupExists) continue;
 
             if (string.IsNullOrWhiteSpace(entry.Value)) continue;
 

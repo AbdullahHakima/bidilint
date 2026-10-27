@@ -300,9 +300,9 @@ internal sealed class JsonLocaleParser
     }
 
     // i18next v4 stores plural categories as sibling keys with a suffix, for
-    // example item_one and item_other. Only mark a group when the same object
-    // has an other value and at least one non-other category; otherwise an
-    // ordinary key that happens to end in _one stays an ordinary key.
+    // example item_one and item_other. A group needs the other value; languages
+    // with a single plural category legitimately have _other on its own. A
+    // non-other suffix without _other stays an ordinary key.
     private static bool TryGetI18NextPluralSuffix(
         string name,
         out string form,
@@ -338,9 +338,7 @@ internal sealed class JsonLocaleParser
         {
             var hasOther = group.Any(candidate =>
                 string.Equals(candidate.Form, "other", StringComparison.Ordinal));
-            var hasNonOther = group.Any(candidate =>
-                !string.Equals(candidate.Form, "other", StringComparison.Ordinal));
-            if (!hasOther || !hasNonOther) continue;
+            if (!hasOther) continue;
 
             var groupKey = prefix.Length == 0
                 ? group.Key

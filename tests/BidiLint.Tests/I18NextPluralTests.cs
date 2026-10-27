@@ -172,7 +172,89 @@ public class I18NextPluralTests
     }
 
     [Fact]
-    public void JsonI18NextPluralSuffix_RequiresOtherAndAnotherCategory()
+    public void JsonI18NextPluralSuffix_MissingGroupStillChecksSurvivingBranchPlaceholders()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            {
+              "item_one": "{{count}} item",
+              "item_other": "{{count}} items"
+            }
+            """);
+        workspace.Write("ar.json", """
+            {
+              "item_one": "{{wrong}} عنصر واحد"
+            }
+            """);
+
+        var result = workspace.Lint();
+
+        var missing = Assert.Single(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.MissingKey);
+        Assert.Equal("item_other", missing.Key);
+
+        var mismatch = Assert.Single(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.PlaceholderMismatch);
+        Assert.Equal("item_one", mismatch.Key);
+        Assert.Contains("{{wrong}}", mismatch.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void JsonI18NextPluralSuffix_NonStringOtherDoesNotFormAGroup()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            {
+              "item_one": "{{count}} item",
+              "item_other": "{{count}} items"
+            }
+            """);
+        workspace.Write("ar.json", """
+            {
+              "item_one": "{{wrong}} عنصر واحد",
+              "item_other": 42
+            }
+            """);
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.MissingKey && diagnostic.Key == "item_other");
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.PlaceholderMismatch && diagnostic.Key == "item_one");
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.NonStringValue && diagnostic.Key == "item_other");
+        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.ExtraKey);
+    }
+
+    [Fact]
+    public void JsonI18NextPluralSuffix_OneFormTargetWithWrongPlaceholderIsReported()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            {
+              "item_one": "{{count}} item",
+              "item_other": "{{count}} items"
+            }
+            """);
+        workspace.Write("ja.json", """
+            {
+              "item_other": "{{wrong}} 個"
+            }
+            """);
+
+        var result = workspace.Lint();
+
+        var finding = Assert.Single(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.PlaceholderMismatch);
+        Assert.Equal("item_other", finding.Key);
+        Assert.Contains("{{wrong}}", finding.Message, StringComparison.Ordinal);
+        AssertNoPluralStructuralFindings(result);
+    }
+
+    [Fact]
+    public void JsonI18NextPluralSuffix_RequiresOtherForNonOtherSuffixes()
     {
         using var workspace = new TestWorkspace();
         workspace.Write("en.json", """
@@ -199,18 +281,30 @@ public class I18NextPluralTests
     }
 
     [Fact]
-    public void JsonI18NextPluralSuffix_OtherAloneIsNotAGroup()
+    public void JsonI18NextPluralSuffix_OtherAloneIsAOneFormGroup()
     {
         using var workspace = new TestWorkspace();
         workspace.Write("en.json", """
             {
-              "phone_other": "phones"
+              "item_one": "{{count}} item",
+              "item_other": "{{count}} items"
+            }
+            """);
+        workspace.Write("ja.json", """
+            {
+              "item_other": "{{count}} 個"
             }
             """);
 
         var load = workspace.Load();
-        var en = Assert.Single(load.Documents);
-        Assert.Null(en.Entries["phone_other"].Plural);
+        var ja = Assert.Single(load.Documents, document => document.Culture == "ja");
+        Assert.Equal("item", ja.Entries["item_other"].Plural!.GroupKey);
+        Assert.Equal("other", ja.Entries["item_other"].Plural!.Form);
+
+        var result = workspace.Lint();
+        AssertNoPluralStructuralFindings(result);
+        Assert.DoesNotContain(result.Diagnostics, diagnostic =>
+            diagnostic.Code is DiagnosticCodes.PlaceholderMismatch or DiagnosticCodes.PlaceholderType);
     }
 
     [Fact]

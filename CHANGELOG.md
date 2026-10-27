@@ -6,30 +6,32 @@
 
 - i18next v4 plural suffix keys (`_zero`, `_one`, `_two`, `_few`, `_many`,
   `_other`) are grouped by the full parent key when the same JSON object
-  contains `_other` and at least one other category. Nested objects use the
-  parent path, for example `cart.item` for `cart.item_one` and
-  `cart.item_other`.
+  contains `_other`. A lone `_other` is a valid one-form group for languages
+  with a single plural category. Nested objects use the parent path, for
+  example `cart.item` for `cart.item_one` and `cart.item_other`.
 - Grouped i18next keys reuse the plural-group comparison: additional target
   categories no longer produce `ExtraKey`, individual base forms are not
   reported missing when the target group exists, and placeholder parity is
   checked over the union of branches. A target group missing `_other` still
   reports `MissingKey` for the base `_other` entry.
-- Added 9 regressions covering flat and nested groups, additional target
-  categories, missing `other`, branch-specific count omission, count dropped
-  from every branch, lone suffix keys, and ARB exclusion.
+- Added 12 regressions covering flat and nested groups, additional target
+  categories, one-form `_other` targets, missing `other`, a missing group that
+  still checks surviving branches, branch-specific count omission, count
+  dropped from every branch, an extra category with a wrong placeholder, lone
+  `_one` keys, non-string `_other` values, and ARB exclusion.
 
 ### Changed
 
-- A lone `_one` or `_other` key remains an ordinary key. Grouping requires the
-  sibling `_other` and another category, so unrelated names are not treated as
-  plurals.
+- A lone `_one` key remains an ordinary key. Grouping requires the sibling
+  `_other`; a lone `_other` is a one-form group, so unrelated non-other suffix
+  names are not treated as plurals.
 - ARB, generic JSON arrays, Android `<string-array>`, and Nextcloud `_::_`
   arrays keep their existing behavior.
 - No bidi or security rule behavior changed.
 
 ### Tests
 
-- Full suite: **431 tests pass**.
+- Full suite: **434 tests pass**.
 - The Nextcloud field corpus does not use i18next suffix keys; the 0.7.2 run
   keeps the 0.7.1 counts.
 
