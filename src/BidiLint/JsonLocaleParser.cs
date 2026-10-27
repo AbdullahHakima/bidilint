@@ -15,6 +15,16 @@ internal sealed class JsonLocaleParser
         MaxDepth = 128,
     };
 
+    private static readonly string[] I18NextPluralSuffixes =
+    [
+        "_other",
+        "_zero",
+        "_one",
+        "_two",
+        "_few",
+        "_many",
+    ];
+
     private readonly SourceText _source;
     private readonly LocaleDocument _document;
     private readonly List<Diagnostic> _diagnostics;
@@ -109,13 +119,14 @@ internal sealed class JsonLocaleParser
     private void ParseObject(ref Utf8JsonReader reader, string prefix, bool collect)
     {
         var seen = new Dictionary<string, SourceSpan>(StringComparer.Ordinal);
+        var pluralCandidates = new List<PluralCandidate>();
 
         while (true)
         {
             if (!reader.Read())
                 throw new JsonException("Unexpected end of JSON while reading an object.");
 
-            if (reader.TokenType == JsonTokenType.EndObject) return;
+            if (reader.TokenType == JsonTokenType.EndObject) break;
             if (reader.TokenType != JsonTokenType.PropertyName)
                 throw new JsonException($"Expected a property name but found {reader.TokenType}.");
 
@@ -152,8 +163,18 @@ internal sealed class JsonLocaleParser
             if (!reader.Read())
                 throw new JsonException("Unexpected end of JSON after a property name.");
 
-            ParseValue(ref reader, fullKey, keySpan, collect && !duplicate && !metadata);
+            var collectValue = collect && !duplicate && !metadata;
+            var entry = ParseValue(ref reader, fullKey, keySpan, collectValue);
+            if (entry is not null &&
+                collectValue &&
+                _options.Format == LocaleFormat.Json &&
+                TryGetI18NextPluralSuffix(name, out var form, out var baseName))
+            {
+                pluralCandidates.Add(new PluralCandidate(entry, baseName, form));
+            }
         }
+
+        MarkI18NextPluralGroups(prefix, pluralCandidates);
     }
 
     private void ParseArray(ref Utf8JsonReader reader, string prefix, bool collect)
@@ -188,7 +209,7 @@ internal sealed class JsonLocaleParser
         key.EndsWith('_') &&
         (key.StartsWith('_') || key.Contains("._", StringComparison.Ordinal));
 
-    private void ParseValue(
+    private LocaleEntry? ParseValue(
         ref Utf8JsonReader reader,
         string key,
         SourceSpan? keySpan,
@@ -199,18 +220,16 @@ internal sealed class JsonLocaleParser
         {
             case JsonTokenType.StartObject:
                 ParseObject(ref reader, key, collect);
-                break;
+                return null;
 
             case JsonTokenType.StartArray:
                 ParseArray(ref reader, key, collect);
-                break;
+                return null;
 
             case JsonTokenType.String:
-                if (collect)
-                {
-                    AddEntry(key, reader.GetString() ?? "", keySpan, SpanOf(reader), plural);
-                }
-                break;
+                return collect
+                    ? AddEntry(key, reader.GetString() ?? "", keySpan, SpanOf(reader), plural)
+                    : null;
 
             case JsonTokenType.Number:
             case JsonTokenType.True:
@@ -227,14 +246,14 @@ internal sealed class JsonLocaleParser
                         _culture,
                         key));
                 }
-                break;
+                return null;
 
             default:
                 throw new JsonException($"Unexpected token {reader.TokenType}.");
         }
     }
 
-    private void AddEntry(
+    private LocaleEntry? AddEntry(
         string key,
         string value,
         SourceSpan? keySpan,
@@ -259,10 +278,10 @@ internal sealed class JsonLocaleParser
                         existing.Span,
                         key),
                 }));
-            return;
+            return null;
         }
 
-        _document.Entries.Add(key, new LocaleEntry
+        var entry = new LocaleEntry
         {
             Key = key,
             Value = value,
@@ -275,8 +294,72 @@ internal sealed class JsonLocaleParser
                 value,
                 ValueQuoteSyntax.Json),
             Plural = plural,
-        });
+        };
+        _document.Entries.Add(key, entry);
+        return entry;
     }
+
+    // i18next v4 stores plural categories as sibling keys with a suffix, for
+    // example item_one and item_other. A group needs the other value; a
+    // recognized one-form culture may legitimately have _other on its own. A
+    // non-other suffix without _other stays an ordinary key.
+    private static bool TryGetI18NextPluralSuffix(
+        string name,
+        out string form,
+        out string baseName)
+    {
+        foreach (var suffix in I18NextPluralSuffixes)
+        {
+            if (name.Length <= suffix.Length ||
+                !name.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            form = suffix[1..];
+            baseName = name[..^suffix.Length];
+            return true;
+        }
+
+        form = "";
+        baseName = "";
+        return false;
+    }
+
+    private void MarkI18NextPluralGroups(
+        string prefix,
+        List<PluralCandidate> candidates)
+    {
+        if (candidates.Count == 0) return;
+
+        var singlePluralForm = CultureTag.UsesSinglePluralForm(_culture);
+        foreach (var group in candidates.GroupBy(
+                     candidate => candidate.BaseName,
+                     StringComparer.Ordinal))
+        {
+            var hasOther = group.Any(candidate =>
+                string.Equals(candidate.Form, "other", StringComparison.Ordinal));
+            var hasNonOther = group.Any(candidate =>
+                !string.Equals(candidate.Form, "other", StringComparison.Ordinal));
+            if (!hasOther || (!hasNonOther && !singlePluralForm)) continue;
+
+            var groupKey = prefix.Length == 0
+                ? group.Key
+                : $"{prefix}.{group.Key}";
+            foreach (var candidate in group)
+            {
+                candidate.Entry.Plural = new PluralFormInfo(
+                    groupKey,
+                    candidate.Form,
+                    PluralFormKind.Category);
+            }
+        }
+    }
+
+    private sealed record PluralCandidate(
+        LocaleEntry Entry,
+        string BaseName,
+        string Form);
 
     private void AddMalformed(string message, SourceSpan span)
     {

@@ -38,7 +38,7 @@ public sealed class LocaleEntry
     // Set only for entries that are one branch of a flattened plural group.
     // The key stays the adapter's public flattened key; this metadata lets the
     // linter pair branches without changing the report schema.
-    internal PluralFormInfo? Plural { get; init; }
+    internal PluralFormInfo? Plural { get; set; }
 }
 
 internal enum PluralFormKind

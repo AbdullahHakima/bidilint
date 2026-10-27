@@ -53,4 +53,4 @@ urdu/locales/ur/messages.json:6:34  warning  NumberAdjacency  urdu.numbers.posit
   logical: "1 2 3"; paragraph level 1 (RTL), run level 2 (LTR) for 3 code units
   visual: "3, 2, 1"
 
-BidiLint 0.7.1: 8 file(s), base en, 88 entries — 8 error(s), 14 warning(s) in 0 ms.
+BidiLint 0.7.2: 8 file(s), base en, 88 entries — 8 error(s), 14 warning(s) in 0 ms.

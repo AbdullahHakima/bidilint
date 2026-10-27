@@ -1,11 +1,11 @@
 # Field validation: Nextcloud RTL locale trees
 
-BidiLint 0.7.0 and 0.7.1 were run against real Arabic, Persian, and Hebrew
-locale files from Nextcloud server (`master`, downloaded 2026-10-26). The goal
-was to find crashes, false positives, and gaps that unit fixtures miss, not to
-add every Nextcloud string as a regression fixture. The 0.6.1 resource-set fix,
-the 0.7.0 placeholder parser, and the 0.7.1 plural grouping were all checked
-against the same corpus.
+BidiLint 0.7.0, 0.7.1, and 0.7.2 were run against real Arabic, Persian, and
+Hebrew locale files from Nextcloud server (`master`, downloaded 2026-10-26).
+The goal was to find crashes, false positives, and gaps that unit fixtures miss,
+not to add every Nextcloud string as a regression fixture. The 0.6.1
+resource-set fix, the 0.7.0 placeholder parser, the 0.7.1 plural grouping, and
+the 0.7.2 i18next grouping were all checked against the same corpus.
 
 ## Corpus
 
@@ -88,6 +88,13 @@ and the five-app run are the real dropped printf arguments above. Generic JSON
 arrays and Android `<string-array>` remain indexed lists and still report extra
 items. Regression coverage is `tests/BidiLint.Tests/PluralGroupTests.cs`.
 
+### 0.7.2: i18next suffix keys
+
+The Nextcloud corpus stores plurals as `_singular_::_plural_` arrays, not as
+i18next `_one`/`_other` suffix keys, so this slice does not change the field
+counts. Re-running 0.7.2 keeps the 0.7.1 totals. Regression coverage lives in
+`tests/BidiLint.Tests/I18NextPluralTests.cs`.
+
 ### Retained: Hebrew right-to-left mark
 
 The settings run reports one `InvisibleControl` finding for an RLM before a
@@ -106,9 +113,9 @@ the security rule was not weakened.
 - `MissingKey` is the largest group because the Arabic, Persian, and Hebrew
   translations do not cover every `en_GB` key. These are real coverage gaps,
   not parser failures.
-- The 0.7.1 runs report no `ExtraKey` findings in this corpus. The additional
-  plural forms that previously dominated this category are now paired as
-  groups; generic arrays still keep the old behavior.
+- The 0.7.1 and 0.7.2 runs report no `ExtraKey` findings in this corpus. The
+  additional plural forms that previously dominated this category are now
+  paired as groups; generic arrays still keep the old behavior.
 - `UnisolatedLatin` mostly reports acronyms, brand names, and code terms such
   as `IP`, `API`, `PHP`, `cron`, and product names. That matches the current
   rule policy; changing it would be a precision-policy change.

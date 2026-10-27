@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.7.2] - 2026-10-27
+
+### Added
+
+- i18next v4 plural suffix keys (`_zero`, `_one`, `_two`, `_few`, `_many`,
+  `_other`) are grouped by the full parent key when the same JSON object
+  contains `_other`. A lone `_other` is a valid one-form group only for
+  recognized one-form cultures; in a multi-form culture it remains an
+  incomplete group. Nested objects use the parent path, for example
+  `cart.item` for `cart.item_one` and `cart.item_other`.
+- Grouped i18next keys reuse the plural-group comparison: additional target
+  categories no longer produce `ExtraKey`, individual base forms are not
+  reported missing when the target group exists, and placeholder parity is
+  checked over the union of branches. A target group missing `_other` still
+  reports `MissingKey` for the base `_other` entry.
+- Added 15 i18next regressions covering flat and nested groups, additional
+  target categories, one-form `_other` targets and bases, a multi-form target
+  with only `_other`, missing `other`, a missing group that still checks
+  surviving branches, branch-specific count omission, count dropped from every
+  branch, an extra category with a wrong placeholder, lone `_one` keys, an
+  ordinary base `_other`, non-string `_other` values, and ARB exclusion. Added a
+  `CultureTag` theory for recognized one-form and multi-form cultures.
+
+### Changed
+
+- A lone `_one` key remains an ordinary key. A lone `_other` is a group only
+  for recognized one-form cultures; in a multi-form culture it stays
+  incomplete, so missing base categories are still reported.
+- One-form detection uses a narrow CLDR cardinal language set. Full per-culture
+  plural-category validation remains planned.
+- ARB, generic JSON arrays, Android `<string-array>`, and Nextcloud `_::_`
+  arrays keep their existing behavior.
+- No bidi or security rule behavior changed.
+
+### Tests
+
+- Full suite: **447 tests pass**.
+- The Nextcloud field corpus does not use i18next suffix keys; the 0.7.2 run
+  keeps the 0.7.1 counts.
+
 ## [0.7.1] - 2026-10-26
 
 ### Added
