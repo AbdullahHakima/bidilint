@@ -15,12 +15,13 @@
   reported missing when the target group exists, and placeholder parity is
   checked over the union of branches. A target group missing `_other` still
   reports `MissingKey` for the base `_other` entry.
-- Added 15 regressions covering flat and nested groups, additional target
-  categories, one-form `_other` targets and bases, a multi-form target with only
-  `_other`, missing `other`, a missing group that still checks surviving
-  branches, branch-specific count omission, count dropped from every branch, an
-  extra category with a wrong placeholder, lone `_one` keys, an ordinary base
-  `_other`, non-string `_other` values, and ARB exclusion.
+- Added 15 i18next regressions covering flat and nested groups, additional
+  target categories, one-form `_other` targets and bases, a multi-form target
+  with only `_other`, missing `other`, a missing group that still checks
+  surviving branches, branch-specific count omission, count dropped from every
+  branch, an extra category with a wrong placeholder, lone `_one` keys, an
+  ordinary base `_other`, non-string `_other` values, and ARB exclusion. Added a
+  `CultureTag` theory for recognized one-form and multi-form cultures.
 
 ### Changed
 
