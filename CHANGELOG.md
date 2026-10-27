@@ -29,9 +29,10 @@
   `_%n folder_::_%n folders_` arrays.
 - Nested ICU placeholders now use the maximum multiplicity per branch, so an
   extra target plural category may repeat `{name}` without a false mismatch.
-  Exact selector variants are compared first, and unmatched extra categories
-  are checked against the base union, so different-selector cross-variant
-  swaps and wrong nested placeholders are still reported.
+  Exact selector variants are paired globally and compared in full; unmatched
+  extra categories are checked against the base union, so a target-only nested
+  name is still reported. Swaps between two variants that both add categories
+  remain outside this check.
 - POT plural templates now use `msgid_plural` for non-zero forms instead of
   repeating the singular `msgid`.
 - An Android group missing `other` now reports only `MissingKey`; the
@@ -49,8 +50,9 @@
   and still report extra and missing items.
 - A placeholder missing from every branch of a plural group is still reported;
   branch-specific placeholder drops inside a group are not reported
-  individually yet, and same-selector cross-variant swaps remain invisible
-  because those variants are merged before nested comparison.
+  individually yet. Same-selector swaps and swaps between two variants that
+  both add categories remain invisible because those variants are merged or
+  handled by the union check.
 - No bidi or security rule behavior changed.
 
 ### Tests
