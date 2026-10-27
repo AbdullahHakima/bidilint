@@ -1,5 +1,68 @@
 # Changelog
 
+## [0.7.1] - 2026-10-26
+
+### Added
+
+- Flattened plural groups are now paired by key and culture for Nextcloud-style
+  JSON arrays (`_singular_::_plural_`), Android `<plurals>` items, and gettext
+  `msgstr[n]` forms. The metadata is internal; the JSON report schema and
+  flattened public keys are unchanged.
+- Group-aware placeholder comparison checks the union of non-empty branches,
+  preserving the maximum multiplicity seen in any one branch. Additional target
+  plural categories no longer produce `ExtraKey`, and a singular-like branch may
+  omit the count without producing a false `PlaceholderMismatch`.
+- Named Android plural groups still require the CLDR-mandated `other` category;
+  a group missing `other` reports `MissingKey` for that branch.
+- Added 30 regressions covering Nextcloud Persian/Hebrew/Arabic plural
+  shapes, nested ICU categories, cross-variant swaps, multi-variant pairing,
+  repeated placeholders, Android and PO groups, generic arrays, bidi analysis,
+  empty branches, placeholder syntax, POT templates, and PO per-form spans.
+
+### Fixed
+
+- Fixed false `ExtraKey` findings for additional plural forms in JSON,
+  Android, and PO resources.
+- Fixed false `PlaceholderMismatch` findings when a plural branch legitimately
+  omits the count placeholder, including the Nextcloud
+  `_%n app has an update available_::_%n apps have an update available_` and
+  `_%n folder_::_%n folders_` arrays.
+- Nested ICU placeholders now use the maximum multiplicity per branch, so an
+  extra target plural category may repeat `{name}` without a false mismatch.
+  Exact selector variants are paired globally and compared in full; unmatched
+  extra categories are checked against the base union, so a target-only nested
+  name is still reported. Swaps between two variants that both add categories
+  remain outside this check.
+- POT plural templates now use `msgid_plural` for non-zero forms instead of
+  repeating the singular `msgid`.
+- An Android group missing `other` now reports only `MissingKey`; the
+  remaining branches are not compared as a union.
+- PO plural diagnostics use the span of the form that contains the offending
+  placeholder, not always `msgstr[0]`.
+
+### Changed
+
+- JSON arrays are paired as plural groups only when the key has the Nextcloud
+  `_::_` shape (a leading or `._` singular segment and a trailing `_`). Generic
+  `colors::palette`, `colors_::_palette`, and arrays under a `namespace::thing`
+  parent remain indexed lists.
+- Generic JSON string arrays and Android `<string-array>` remain indexed lists
+  and still report extra and missing items.
+- A placeholder missing from every branch of a plural group is still reported;
+  branch-specific placeholder drops inside a group are not reported
+  individually yet. Same-selector swaps and swaps between two variants that
+  both add categories remain invisible because those variants are merged or
+  handled by the union check.
+- No bidi or security rule behavior changed.
+
+### Tests
+
+- The full suite is now 422 tests. The Nextcloud field corpus was re-run:
+  core 422 findings (262 errors / 160 warnings), settings 1,777 (983 / 794),
+  and the five-app set 1,963 (1,122 / 841). The only removed findings were the
+  known flattened-plural `ExtraKey` and `PlaceholderMismatch` false positives;
+  no new findings were introduced.
+
 ## [0.7.0] - 2026-10-26
 
 ### Added

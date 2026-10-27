@@ -103,28 +103,50 @@ public static class Linter
         LocaleSet set,
         LintConfig config)
     {
+        var basePluralGroups = BuildPluralGroups(baseSet);
+        var targetPluralGroups = BuildPluralGroups(set);
+
+        ComparePluralGroups(
+            result,
+            baseSet,
+            set,
+            basePluralGroups,
+            targetPluralGroups,
+            config);
+
         foreach (var key in baseSet.Entries.Keys.OrderBy(k => k, StringComparer.Ordinal))
         {
             var baseEntry = baseSet.Entries[key];
+            var basePlural = baseEntry.Plural;
+            PluralGroup? targetGroup = null;
+            var targetGroupExists = basePlural is not null &&
+                targetPluralGroups.TryGetValue(
+                    (baseEntry.Document.Format, basePlural.GroupKey),
+                    out targetGroup);
+
             if (!set.Entries.TryGetValue(key, out var entry))
             {
-                result.Diagnostics.Add(new Diagnostic(
-                    DiagnosticCodes.MissingKey,
-                    DiagnosticSeverity.Error,
-                    $"Key exists in {baseSet.Culture} but is missing here.",
-                    set.PrimaryDocument.FilePath,
-                    Culture: set.Culture,
-                    Key: key,
-                    Related: new[]
+                if (targetGroupExists)
+                {
+                    // A group may legitimately have fewer categories in the
+                    // target culture. Named Android categories still require
+                    // the CLDR-mandated "other" branch.
+                    if (basePlural!.Kind == PluralFormKind.Category &&
+                        string.Equals(basePlural.Form, "other", StringComparison.OrdinalIgnoreCase) &&
+                        targetGroup!.OtherEntry is null)
                     {
-                        new RelatedDiagnostic(
-                            "Base value.",
-                            baseEntry.Document.FilePath,
-                            baseEntry.KeySpan ?? baseEntry.Span,
-                            key),
-                    }));
+                        AddMissingKey(result, baseSet, set, key, baseEntry);
+                    }
+
+                    continue;
+                }
+
+                AddMissingKey(result, baseSet, set, key, baseEntry);
                 continue;
             }
+
+            // Plural placeholder parity is checked once for the whole group.
+            if (basePlural is not null) continue;
 
             if (string.IsNullOrWhiteSpace(entry.Value)) continue;
 
@@ -178,6 +200,12 @@ public static class Linter
         {
             if (baseSet.Entries.ContainsKey(key)) continue;
             var entry = set.Entries[key];
+            if (entry.Plural is { } targetPlural &&
+                basePluralGroups.ContainsKey((entry.Document.Format, targetPlural.GroupKey)))
+            {
+                continue;
+            }
+
             result.Diagnostics.Add(new Diagnostic(
                 DiagnosticCodes.ExtraKey,
                 DiagnosticSeverity.Warning,
@@ -187,6 +215,177 @@ public static class Linter
                 set.Culture,
                 key));
         }
+    }
+
+    private static void AddMissingKey(
+        LintResult result,
+        LocaleSet baseSet,
+        LocaleSet set,
+        string key,
+        LocaleEntry baseEntry)
+    {
+        result.Diagnostics.Add(new Diagnostic(
+            DiagnosticCodes.MissingKey,
+            DiagnosticSeverity.Error,
+            $"Key exists in {baseSet.Culture} but is missing here.",
+            set.PrimaryDocument.FilePath,
+            Culture: set.Culture,
+            Key: key,
+            Related: new[]
+            {
+                new RelatedDiagnostic(
+                    "Base value.",
+                    baseEntry.Document.FilePath,
+                    baseEntry.KeySpan ?? baseEntry.Span,
+                    key),
+            }));
+    }
+
+    private static Dictionary<(LocaleFormat Format, string GroupKey), PluralGroup> BuildPluralGroups(
+        LocaleSet set)
+    {
+        var groups = new Dictionary<(LocaleFormat, string), PluralGroup>();
+        foreach (var entry in set.Entries.Values)
+        {
+            if (entry.Plural is not { } plural) continue;
+
+            var groupKey = (entry.Document.Format, plural.GroupKey);
+            if (!groups.TryGetValue(groupKey, out var group))
+            {
+                group = new PluralGroup(plural.GroupKey);
+                groups.Add(groupKey, group);
+            }
+
+            group.Entries.Add(entry);
+        }
+
+        return groups;
+    }
+
+    private static void ComparePluralGroups(
+        LintResult result,
+        LocaleSet baseSet,
+        LocaleSet set,
+        Dictionary<(LocaleFormat Format, string GroupKey), PluralGroup> baseGroups,
+        Dictionary<(LocaleFormat Format, string GroupKey), PluralGroup> targetGroups,
+        LintConfig config)
+    {
+        if (config.PlaceholderDialect == PlaceholderDialect.None) return;
+
+        foreach (var (groupKey, baseGroup) in baseGroups
+                     .OrderBy(pair => pair.Key.GroupKey, StringComparer.Ordinal))
+        {
+            if (!targetGroups.TryGetValue(groupKey, out var targetGroup)) continue;
+
+            // A named Android group missing "other" already has a MissingKey
+            // diagnostic. Comparing the remaining branches as a union would
+            // add a second, misleading placeholder finding.
+            if (baseGroup.OtherEntry is not null && targetGroup.OtherEntry is null)
+                continue;
+
+            var baseMessages = ParseGroup(baseGroup, config);
+            var targetMessages = ParseGroup(targetGroup, config);
+            if (baseMessages.Count == 0 || targetMessages.Count == 0) continue;
+            if (baseMessages.Any(parsed => parsed.Message.HasIssues) ||
+                targetMessages.Any(parsed => parsed.Message.HasIssues))
+            {
+                // PlaceholderSyntax is reported per value; comparing a
+                // partially parsed group would add noise.
+                continue;
+            }
+
+            var comparison = PlaceholderComparer.ComparePluralGroup(
+                baseMessages.Select(parsed => parsed.Message).ToList(),
+                targetMessages.Select(parsed => parsed.Message).ToList());
+            if (comparison.IsMatch) continue;
+
+            var targetEntry = FindEntry(targetMessages, comparison.TargetToken) ??
+                              targetGroup.Representative;
+            var baseEntry = FindEntry(baseMessages, comparison.BaseToken) ??
+                            baseGroup.Representative;
+            var code = comparison.Kind == PlaceholderDifferenceKind.Type
+                ? DiagnosticCodes.PlaceholderType
+                : DiagnosticCodes.PlaceholderMismatch;
+            var verb = comparison.Kind == PlaceholderDifferenceKind.Type
+                ? "Plural placeholder type or format differs"
+                : "Plural placeholders differ";
+            var targetSpan = comparison.TargetToken is { } targetToken &&
+                             FindEntry(targetMessages, targetToken) is { } targetTokenEntry
+                ? MapSpan(targetTokenEntry, targetToken.Start, targetToken.Length)
+                : targetEntry.Span;
+            var baseSpan = comparison.BaseToken is { } baseToken &&
+                           FindEntry(baseMessages, baseToken) is { } baseTokenEntry
+                ? MapSpan(baseTokenEntry, baseToken.Start, baseToken.Length)
+                : baseEntry.Span;
+
+            result.Diagnostics.Add(new Diagnostic(
+                code,
+                DiagnosticSeverity.Error,
+                $"{verb} from {baseSet.Culture}: expected [{comparison.Expected}], found [{comparison.Found}].",
+                targetEntry.Document.FilePath,
+                targetSpan,
+                set.Culture,
+                targetEntry.Key,
+                new[]
+                {
+                    new RelatedDiagnostic(
+                        "Base plural value.",
+                        baseEntry.Document.FilePath,
+                        baseSpan,
+                        baseEntry.Key),
+                }));
+        }
+    }
+
+    private static List<ParsedGroupEntry> ParseGroup(PluralGroup group, LintConfig config)
+    {
+        var parsed = new List<ParsedGroupEntry>();
+        foreach (var entry in group.Entries.OrderBy(entry => entry.Key, StringComparer.Ordinal))
+        {
+            if (string.IsNullOrWhiteSpace(entry.Value)) continue;
+
+            parsed.Add(new ParsedGroupEntry(
+                entry,
+                PlaceholderParser.Parse(
+                    entry.Value,
+                    entry.Document.Format,
+                    config.PlaceholderDialect)));
+        }
+
+        return parsed;
+    }
+
+    private static LocaleEntry? FindEntry(
+        IReadOnlyList<ParsedGroupEntry> entries,
+        PlaceholderToken? token)
+    {
+        if (token is null) return null;
+
+        foreach (var parsed in entries)
+        {
+            if (ContainsToken(parsed.Message.Tokens, token))
+                return parsed.Entry;
+        }
+
+        return null;
+    }
+
+    private static bool ContainsToken(
+        IReadOnlyList<PlaceholderToken> tokens,
+        PlaceholderToken target)
+    {
+        foreach (var token in tokens)
+        {
+            if (ReferenceEquals(token, target)) return true;
+            if (token.Branches is null) continue;
+
+            foreach (var branch in token.Branches)
+            {
+                if (ContainsToken(branch.Tokens, target)) return true;
+            }
+        }
+
+        return false;
     }
 
     private static void CheckValues(LintResult result, LocaleSet set, LintConfig config)
@@ -298,6 +497,28 @@ public static class Linter
 
     private static bool CultureEquals(string left, string right) =>
         string.Equals(left, right, StringComparison.OrdinalIgnoreCase);
+
+    private sealed record ParsedGroupEntry(
+        LocaleEntry Entry,
+        PlaceholderMessage Message);
+
+    private sealed class PluralGroup
+    {
+        public PluralGroup(string groupKey)
+        {
+            GroupKey = groupKey;
+        }
+
+        public string GroupKey { get; }
+        public List<LocaleEntry> Entries { get; } = new();
+
+        public LocaleEntry? OtherEntry => Entries.FirstOrDefault(entry =>
+            entry.Plural?.Kind == PluralFormKind.Category &&
+            string.Equals(entry.Plural.Form, "other", StringComparison.OrdinalIgnoreCase));
+
+        public LocaleEntry Representative =>
+            OtherEntry ?? Entries.OrderBy(entry => entry.Key, StringComparer.Ordinal).First();
+    }
 
     private sealed class LocaleSet
     {

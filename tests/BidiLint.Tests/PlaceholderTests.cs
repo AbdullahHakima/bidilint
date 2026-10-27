@@ -111,6 +111,39 @@ public class PlaceholderTests
     }
 
     [Fact]
+    public void IcuBranchContainingOnlyNestedPlaceholder_IsParsed()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            { "message": "{count, plural, one {{name}} other {{name}}}" }
+            """);
+        workspace.Write("ar.json", """
+            { "message": "{count, plural, one {{other}} other {{other}}}" }
+            """);
+
+        var result = workspace.Lint();
+
+        Assert.Contains(result.Diagnostics, diagnostic =>
+            diagnostic.Code == DiagnosticCodes.PlaceholderMismatch);
+    }
+
+    [Fact]
+    public void IcuPluralExtraCategoryWithNestedPlaceholder_IsAllowed()
+    {
+        using var workspace = new TestWorkspace();
+        workspace.Write("en.json", """
+            { "message": "{count, plural, one {# file for {name}} other {# files for {name}}}" }
+            """);
+        workspace.Write("ar.json", """
+            { "message": "{count, plural, zero {لا ملفات لـ {name}} one {# ملف لـ {name}} two {ملفان لـ {name}} few {# ملفات لـ {name}} many {# ملفاً لـ {name}} other {# ملف لـ {name}}}" }
+            """);
+
+        var result = workspace.Lint();
+
+        AssertNoPlaceholderFindings(result);
+    }
+
+    [Fact]
     public void IcuNestedPlaceholderMissing_IsReported()
     {
         using var workspace = new TestWorkspace();

@@ -2,7 +2,7 @@
 
 > **From a working prototype to a production localization linter teams keep in CI.**
 >
-> Current release: **0.7.0** (2026-10-26) · Target: **1.0.0** · Last reviewed: 2026-10-26
+> Current release: **0.7.1** (2026-10-26) · Target: **1.0.0** · Last reviewed: 2026-10-26
 
 ---
 
@@ -62,16 +62,18 @@ Production is not "more rules". It means all of the following are true:
 | 0.6.0 | Unicode 17.0.0 bidi data and UAX #9 resolver, script/culture direction detection, isolation and control rewrite, numeral/normalization rules, Trojan Source security rules, RTL fixture corpus, golden outputs, and a 100k-entry CI benchmark |
 | 0.6.1 | Field validation on Nextcloud RTL locale trees; culture-named JSON files use their containing directory as the resource set, fixing cross-app `KeyCollision` false positives; field-validation record; no rule-policy changes |
 | 0.7.0 | Placeholder AST and dialect adapters for .NET composite, ICU MessageFormat 1, printf, i18next/Angular/Mustache, Rails, and JavaScript templates; escaped-brace and ICU false positives removed; `PlaceholderSyntax`/`PlaceholderType`; ICU branch text remains bidi-analyzed; config dialect expansion |
+| 0.7.1 | Flattened plural-group pairing for Nextcloud-style JSON arrays, Android `<plurals>`, and gettext `msgstr[n]`; group-level placeholder union; extra plural forms no longer produce `ExtraKey`; named Android groups still require `other`; field-corpus verification |
 
 Verified on 2026-10-26: `dotnet build`, `dotnet test`, and `dotnet format
---verify-no-changes` succeed; **392 tests pass**; the storefront sample reports
+--verify-no-changes` succeed; **422 tests pass**; the storefront sample reports
 4 errors and 5 warnings; the resx sample reports 1 error and 2 warnings; the
 packed tool installs and runs in CI. Six locale formats now share one
 span-aware document model. The 0.6 engine passes the full Unicode 17.0.0
 `BidiTest` and `BidiCharacterTest` suites, and the 100k-entry benchmark
-completes inside the CI budget.
+completes inside the CI budget. The 0.7.1 Nextcloud field run removed only the
+known flattened-plural false positives and introduced no new findings.
 
-### Honest audit after 0.7.0
+### Honest audit after 0.7.1
 
 The foundation, the common format adapters, the adoption layer, and the bidi
 engine are in place. The remaining gaps below drive the next phases.
@@ -82,7 +84,7 @@ engine are in place. The remaining gaps below drive the next phases.
 | Load failures | Malformed JSON/XML/PO/.strings, bad encodings, duplicate keys, and flattening collisions produce positioned diagnostics | Size limits, partial-parse recovery, and diagnostics for every ignored implicit candidate |
 | Provenance | Per-document entries with source spans; format-specific parser positions; comparison findings link to the base; bidi findings map decoded values back to source ranges where the format allows it | Snippets, SARIF, and edit ranges for fixes |
 | Text output | Relative `path:line:column`, code, key, message, related base location, quiet/color modes, suppression counts | Snippets, SARIF/GitHub annotations, output files, and MSBuild/JUnit formats |
-| Placeholders | AST comparison for .NET composite, ICU, printf, i18next/Angular/Mustache, Rails, and JavaScript; escaped braces; syntax and format/type rules; ICU branch text remains bidi-analyzed | Flattened JSON/Android/PO plural-group pairing, per-path dialect overrides, and CLDR category validation (0.7.x) |
+| Placeholders | AST comparison for .NET composite, ICU, printf, i18next/Angular/Mustache, Rails, and JavaScript; escaped braces; syntax and format/type rules; ICU branch text remains bidi-analyzed; flattened JSON/Android/PO plural groups are paired by key and culture | Per-path dialect overrides and CLDR category validation (0.7.x) |
 | Bidi checks | Script-aware RTL detection; UAX #9 resolved levels; span-aware isolation, control, depth, number-adjacency, mixed-numeral, presentation-form, NFC, and tatweel rules; escaped logical/run-level explanations in text and JSON; built-in mitigation recognition; Trojan Source and invisible-control security rules with reasoned waivers | SARIF (0.8) |
 | Culture model | BCP-47 validation, explicit layouts, neutral-resource mapping to `--base`, config overrides and custom layout names | Base auto-detection when neutral resources are ambiguous, and custom tags (1.1) |
 | Config | `bidilint.json`/JSONC, published schema, discovery, `--config`, `--no-config`, `--init`, include/exclude, layouts/files, rules, terms, RTL cultures, isolation wrappers, output policy | Path-scoped rule severity overrides (0.8), YAML config |
@@ -104,7 +106,8 @@ These were the prerequisites before any new format:
 3. Add file, line, column, and span provenance to every finding. **Done in
    0.3.0.**
 4. Replace regex-only placeholders with format-aware parsers. **Done in
-   0.7.0 for the shipped formats; flattened plural groups remain 0.7.x.**
+   0.7.0 for the shipped formats; flattened plural groups are paired in
+   0.7.1.**
 5. Make bidi analysis script-aware (Arabic, Hebrew, Syriac, Thaana, N'Ko, and
    other RTL scripts), not Arabic-only. **Done in 0.6.0.**
 
@@ -455,8 +458,8 @@ RTL ordering.
       - ICU plural/select branch structure and nested placeholders inside
         branches;
       - required `other` branch.
-- [ ] Flattened JSON/Android/PO plural-group parity and valid CLDR plural
-      categories per culture (0.7.x).
+- [x] Flattened JSON/Android/PO plural-group parity (0.7.1).
+- [ ] Valid CLDR plural categories per culture (0.7.x).
 - [ ] i18next `_one`/`_other` key grouping and nesting (0.7.x).
 - [ ] Markup rules: balanced HTML/XML tags, tag-name sequence parity, and
       attribute placeholder parity. Compare structure, not translated text
@@ -473,13 +476,14 @@ RTL ordering.
 positives on ICU and escaped braces are gone; a missing `{1}` and a missing
 `select` branch are reported with both base and target spans;
 `PlaceholderMismatch`, `PlaceholderSyntax`, and `PlaceholderType` are
-independently configurable. Flattened plural-group parity remains 0.7.x.
+independently configurable. Flattened plural-group parity was completed in
+0.7.1.
 
 ### 0.7.x — Localization follow-ups before 0.8.0
 
-- [ ] Pair flattened JSON plural arrays, Android `<plurals>`, and PO plural
+- [x] Pair flattened JSON plural arrays, Android `<plurals>`, and PO plural
       groups by key and culture; compare branch parity and suppress legitimate
-      extra plural forms instead of reporting `ExtraKey`.
+      extra plural forms instead of reporting `ExtraKey` (0.7.1).
 - [ ] i18next `_one`/`_other` key grouping, nesting, and plural-aware keys.
 - [ ] Per-path placeholder dialect overrides.
 - [ ] Validate CLDR plural categories for the target culture.
@@ -634,10 +638,10 @@ until 1.0.
 
 | Rule | Default | Milestone | Catches |
 | --- | --- | --- | --- |
-| `PlaceholderMismatch` | error | shipped, expanded in 0.7 | Missing/extra/renamed args |
+| `PlaceholderMismatch` | error | shipped, expanded in 0.7.1 | Missing/extra/renamed args, including plural-group unions |
 | `PlaceholderSyntax` | error | 0.7 | Unclosed braces, malformed ICU, invalid printf |
 | `PlaceholderType` | error | 0.7 | Type/format-spec mismatch where metadata exists |
-| `PluralMismatch` | error | 0.7 | Missing branches, invalid categories, missing `other` |
+| `PluralMismatch` | error | 0.7.x | Missing branches, invalid categories, missing `other` |
 | `MarkupMismatch` | error | 0.7 | Tag or attribute structure differs from base |
 | `HtmlUnbalanced` | error | 0.7 | Unclosed/overlapping tags in a value |
 | `GlossaryMismatch` | warning | 0.7 | Brand/term spelling or casing policy |

@@ -110,7 +110,8 @@ internal sealed class AndroidAdapter : ILocaleAdapter
                 item.Value,
                 SpanOf(item, source),
                 SpanOf(element, source),
-                diagnostics);
+                diagnostics,
+                new PluralFormInfo(name, quantity, PluralFormKind.Category));
         }
     }
 
@@ -144,7 +145,8 @@ internal sealed class AndroidAdapter : ILocaleAdapter
         string value,
         SourceSpan? span,
         SourceSpan? keySpan,
-        List<Diagnostic> diagnostics)
+        List<Diagnostic> diagnostics,
+        PluralFormInfo? plural = null)
     {
         if (document.Entries.TryGetValue(key, out var existing))
         {
@@ -174,6 +176,7 @@ internal sealed class AndroidAdapter : ILocaleAdapter
             Document = document,
             Span = span,
             KeySpan = keySpan,
+            Plural = plural,
         });
     }
 

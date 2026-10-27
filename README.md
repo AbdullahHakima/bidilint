@@ -260,12 +260,12 @@ compared against its own base.
 
 | Format | Discovery and resource-set examples |
 | --- | --- |
-| **JSON, culture-named file** | `en.json`, `ar-EG.json`. Nested objects and arrays flatten to dotted/indexed keys (`checkout.payNow`, `items[0].label`). Files that are not named like a culture (`app.json`) are ignored unless mapped in `files`. |
+| **JSON, culture-named file** | `en.json`, `ar-EG.json`. Nested objects and arrays flatten to dotted/indexed keys (`checkout.payNow`, `items[0].label`). Arrays under a Nextcloud-style `_singular_::_plural_` key are paired as plural groups; other arrays remain indexed lists. Files that are not named like a culture (`app.json`) are ignored unless mapped in `files`. |
 | **JSON, culture directory** | `locales/en/translation.json`, `web/locales/ar/common.json`. The culture must sit directly below a conventional layout folder (`locales`, `locale`, `i18n`, `lang`, `languages`, `translations`, `messages`, `intl`, `resources`, `po`) or a configured `layouts` name. |
 | **.resx** | `Strings.resx` (base), `Strings.ar.resx` (Arabic). Non-string resources are skipped. `Errors.resx` and `Strings.resx` are separate sets. |
-| **Android** | `app/src/main/res/values/strings.xml` (base), `res/values-ar/strings.xml`, `res/values-b+ar+EG/strings.xml`, `res/values-ar-rEG/strings.xml`. `<plurals>` becomes `key[one]`, `key[other]`; `<string-array>` becomes `key[0]`, `key[1]`. Non-locale qualifiers (`values-night`, `values-sw600dp`) are ignored. |
+| **Android** | `app/src/main/res/values/strings.xml` (base), `res/values-ar/strings.xml`, `res/values-b+ar+EG/strings.xml`, `res/values-ar-rEG/strings.xml`. `<plurals>` becomes `key[one]`, `key[other]` and is paired as a plural group; `<string-array>` becomes `key[0]`, `key[1]` and remains an indexed list. Non-locale qualifiers (`values-night`, `values-sw600dp`) are ignored. |
 | **Apple .strings** | `Resources/en.lproj/Localizable.strings`, `Resources/ar.lproj/Localizable.strings`. `Base.lproj` maps to `--base`. Comments and C-style escapes are parsed. |
-| **gettext PO/POT** | `locale/en/LC_MESSAGES/messages.po`, `locale/ar/LC_MESSAGES/messages.po`, `locale/messages.pot`. `msgid` is the key; `msgctxt` is prefixed as `context|msgid`; plural forms become `msgid[0]`, `msgid[1]`, … |
+| **gettext PO/POT** | `locale/en/LC_MESSAGES/messages.po`, `locale/ar/LC_MESSAGES/messages.po`, `locale/messages.pot`. `msgid` is the key; `msgctxt` is prefixed as `context|msgid`; plural forms become `msgid[0]`, `msgid[1]`, … and are paired as a plural group. |
 | **Flutter ARB** | `lib/l10n/app_en.arb`, `lib/l10n/app_ar.arb`, or a file with `@@locale`. Metadata keys (`@key`, `@@locale`) are skipped and never linted as user-visible text. |
 
 A resource set is the relative path with the culture segment removed:
@@ -305,6 +305,16 @@ differ by language; extra categories such as Arabic
 `zero`/`two`/`few`/`many` are allowed. Branch message text remains visible to
 bidi and security analysis; only ICU syntax, selectors, braces, `#`, and nested
 placeholders are masked.
+
+Flattened plural groups from Nextcloud-style JSON arrays, Android `<plurals>`,
+and gettext plural forms are paired by group. Additional target categories are
+accepted instead of reported as `ExtraKey`. Placeholder names and format/type
+signatures are compared over the union of non-empty branches, so a singular
+branch may omit the count while a placeholder missing from every branch is
+still reported. Exact ICU selector variants are compared first; unmatched
+extra categories are checked against the base union. Generic JSON arrays and
+Android `<string-array>` are not plural groups and keep indexed `ExtraKey` and
+`MissingKey` behavior.
 
 ## What it checks
 
@@ -410,7 +420,7 @@ samples/storefront/ar.json:1:360  warning  UnisolatedLatin  skills.stack
   Latin run "C#" is not isolated from the surrounding RTL text (resolved level 2). Wrap it in LRI/FSI..PDI, <bdi>, <code>, or dir="ltr".
   logical: "C#"; paragraph level 1 (RTL), run levels 2 (LTR), 1 (RTL)
 
-BidiLint 0.7.0: 2 file(s), base en, 18 entries — 4 error(s), 5 warning(s) in 72 ms.
+BidiLint 0.7.1: 2 file(s), base en, 18 entries — 4 error(s), 5 warning(s) in 72 ms.
 ```
 
 Elapsed time varies between runs.
@@ -469,15 +479,22 @@ characters for display. `range` remains the source span.
   files. `Tatweel` defaults to `warning`; set it to `info` or `off` when
   kashida is an intentional typographic choice. Presentation-form and
   normalization findings can be baselined, like lint rules.
-- PO plural forms are flattened into `msgid[0]`, `msgid[1]`, and so on.
-  Languages with different plural counts still report `ExtraKey` on their
-  additional forms until flattened plural groups are paired in 0.7.x.
-- JSON plural arrays are flattened into `key[0]`, `key[1]`, and so on and
-  compared branch by branch. A singular branch that legitimately omits a count
-  placeholder can still report `PlaceholderMismatch` until flattened plural
-  groups are paired in 0.7.x. ICU messages inside a single JSON or ARB value
-  are compared with the ICU AST.
-- ICU comparison checks argument names, required `other`, select branch parity,
+- Flattened plural groups are paired for Nextcloud-style JSON arrays whose key
+  has the `_::_` shape, Android `<plurals>`, and gettext plural forms.
+  Additional target categories are accepted instead of reported as `ExtraKey`,
+  and placeholder parity is compared over the union of non-empty branches so a
+  singular branch may omit the count. A placeholder missing from every branch
+  is still reported. Exact ICU selector variants are paired and compared in
+  full; unmatched extra categories are checked against the base union. Generic
+  JSON arrays and Android `<string-array>` remain indexed lists and still report
+  extra and missing items.
+- Branch-specific placeholder drops inside a plural group are not reported
+  individually yet. Same-selector swaps and swaps between two variants that
+  both add categories remain invisible because those variants are merged or
+  handled by the union check. The group-level union is the 0.7.1 contract.
+  CLDR plural category validation per culture is still planned for 0.7.x.
+- ICU messages inside a single JSON or ARB value are compared with the ICU AST.
+  ICU comparison checks argument names, required `other`, select branch parity,
   and nested placeholders. It does not yet validate that every plural category
   is legal for the target culture; that CLDR-category check is planned for
   0.7.x.
@@ -495,8 +512,8 @@ characters for display. `range` remains the source span.
 ## Roadmap
 
 The detailed plan from the current 0.7 foundation to a production-ready 1.0 -
-flattened plural groups, SARIF, safe auto-fix, and release gates - lives in
-[ROADMAP.md](ROADMAP.md).
+per-path dialects, CLDR plural categories, SARIF, safe auto-fix, and release
+gates - lives in [ROADMAP.md](ROADMAP.md).
 
 ## Development
 

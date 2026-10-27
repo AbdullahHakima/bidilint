@@ -34,7 +34,23 @@ public sealed class LocaleEntry
     // Optional mapping from decoded value offsets to the raw source token.
     // Adapters that can provide it get sub-value diagnostic ranges.
     internal ValueSourceMap? ValueMap { get; init; }
+
+    // Set only for entries that are one branch of a flattened plural group.
+    // The key stays the adapter's public flattened key; this metadata lets the
+    // linter pair branches without changing the report schema.
+    internal PluralFormInfo? Plural { get; init; }
 }
+
+internal enum PluralFormKind
+{
+    Numeric,
+    Category,
+}
+
+internal sealed record PluralFormInfo(
+    string GroupKey,
+    string Form,
+    PluralFormKind Kind);
 
 public sealed record SuppressedDiagnostic(
     Diagnostic Diagnostic,
